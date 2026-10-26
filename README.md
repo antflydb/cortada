@@ -12,6 +12,7 @@ The same application works with local Antfly Lite and Antfly Cloud Lite. The bro
 - Full-text retrieval, with optional Antfly-native embeddings and hybrid RRF search
 - Vercel-ready Next.js application
 - Fail-closed Basic access control for hosted deployments
+- Opt-in public-demo mode with bounded request bodies and per-client throttles
 - No OpenAI, Anthropic, or Perplexity dependency
 
 ## Architecture
@@ -74,12 +75,17 @@ The starter uses the `default` table created by Antfly Lite. Set `ANTFLY_ENABLE_
 | `ANTFLY_EMBEDDING_INDEX` | When enabled | Existing Antfly embedding index name |
 | `CORTADA_BASIC_AUTH_USER` | Vercel | Deployment access username |
 | `CORTADA_BASIC_AUTH_PASSWORD` | Vercel | Deployment access password |
+| `CORTADA_PUBLIC_DEMO` | No | Set to `true` only after configuring public traffic controls |
+| `CORTADA_INGEST_RATE_LIMIT` | No | Per-instance ingestion budget; defaults to 5 per 10 minutes |
+| `CORTADA_SEARCH_RATE_LIMIT` | No | Per-instance search budget; defaults to 30 per minute |
 
 Never use `NEXT_PUBLIC_` for Antfly credentials.
 
 ## Vercel
 
-Import the GitHub repository into Vercel and configure the variables above for production. Use a distinct `CORTADA_NAMESPACE` for trusted preview deployments. Never give untrusted pull-request previews a production Antfly credential. Cortada refuses hosted traffic when Basic access control is missing.
+Import the GitHub repository into Vercel and configure the variables above for production. Use a distinct `CORTADA_NAMESPACE` for trusted preview deployments. Never give untrusted pull-request previews a production Antfly credential. Cortada refuses hosted traffic when Basic access control is missing unless `CORTADA_PUBLIC_DEMO=true` is explicitly set.
+
+The built-in request limiter is defense in depth for a single application instance. Before enabling a public demo, add a distributed rate limit at Vercel's firewall or another trusted edge and keep spend alerts enabled.
 
 This is a Vercel deployment reference, not yet a Vercel Marketplace integration. See [Vercel deployment](docs/VERCEL.md).
 
