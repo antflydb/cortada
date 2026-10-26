@@ -2,6 +2,7 @@ import "server-only";
 import { conjunction, disjunction, matchAll, term, type QueryRequest } from "@antfly/sdk";
 import { antflyClient } from "./client";
 import { antflySettings } from "./config";
+import { antflySearchIndexes } from "./search-indexes";
 import type { AnalysisDocument, Overview, SearchHit, SourceDocument } from "@/lib/types";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
@@ -119,10 +120,7 @@ export async function searchVisibilityEvidence(query: string, limit = 8): Promis
         term("visibility_citation", "type"),
       ]),
     ]),
-    indexes: [
-      settings.fullTextIndex,
-      ...(settings.embeddingsEnabled && settings.embeddingIndex ? [settings.embeddingIndex] : []),
-    ],
+    indexes: antflySearchIndexes(settings),
     limit,
     ...(settings.embeddingsEnabled && settings.embeddingIndex
       ? { semantic_search: query, merge_config: { strategy: "rrf" } }
@@ -166,10 +164,7 @@ export async function searchSources(query: string, limit = 8): Promise<SearchHit
   const request: QueryRequest = {
     full_text_search: { query },
     filter_query: conjunction([namespaceFilter(), term("source", "type")]),
-    indexes: [
-      settings.fullTextIndex,
-      ...(settings.embeddingsEnabled && settings.embeddingIndex ? [settings.embeddingIndex] : []),
-    ],
+    indexes: antflySearchIndexes(settings),
     limit,
     ...(settings.embeddingsEnabled && settings.embeddingIndex
       ? { semantic_search: query, merge_config: { strategy: "rrf" } }

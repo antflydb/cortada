@@ -30,7 +30,36 @@ ANTFLY_ENABLE_EMBEDDINGS=true
 ANTFLY_EMBEDDING_INDEX=your_embedding_index
 ```
 
-Confirm that the selected Cloud Lite runtime supports the model before enabling it.
+Confirm that the selected Cloud Lite runtime supports the model before enabling it. A compatible
+Antfly-managed index can be created from the Antfarm **Indexes** screen in Raw JSON mode:
+
+```json
+{
+  "name": "cortada_evidence_v1",
+  "type": "embeddings",
+  "dimension": 384,
+  "coverage_policy": "partial",
+  "template": "{{#if (eq type \"source\")}}Brand: {{brandName}} | Title: {{title}} | URL: {{url}} | Description: {{description}} | Content: {{text}}{{/if}} {{#if (eq type \"visibility_prompt\")}}Persona: {{personaId}} | Topics: {{#each topicIds}}{{this}} {{/each}} | Buyer question: {{text}}{{/if}} {{#if (eq type \"visibility_observation\")}}Persona: {{personaId}} | Topics: {{#each topicIds}}{{this}} {{/each}} | Provider: {{providerId}} | Model: {{modelId}} | Answer: {{answer}} | Mentions: {{#each mentions}}{{brandName}} rank {{rank}}; {{/each}}{{/if}} {{#if (eq type \"visibility_citation\")}}Citation: {{title}} | Domain: {{hostname}} | URL: {{url}} | Source type: {{sourceType}}{{/if}}",
+  "embedder": {
+    "provider": "antfly",
+    "model": "BAAI/bge-small-en-v1.5"
+  },
+  "chunker": {
+    "provider": "antfly",
+    "model": "fixed",
+    "max_chunks": 32,
+    "text": {
+      "target_tokens": 200,
+      "overlap_tokens": 25
+    }
+  }
+}
+```
+
+`coverage_policy: "partial"` is intentional: Cortada keeps audit documents in the same table, but
+the evidence index only embeds source and visibility records. In hybrid requests, Cortada passes
+only the vector index in `indexes`; Antfly automatically uses the table's active full-text index
+for the BM25 side of RRF.
 
 ## 4. Isolate previews
 
