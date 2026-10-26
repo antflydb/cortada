@@ -1,0 +1,71 @@
+{
+  "campaign": {
+    "key": "acme-retrieval-baseline",
+    "name": "Acme retrieval visibility baseline",
+    "brandName": "Acme Search",
+    "domains": ["acme.example"],
+    "competitors": ["Example Vector", "Sample Search"],
+    "personas": [
+      { "id": "privacy", "name": "Privacy-first platform architect" },
+      { "id": "velocity", "name": "Velocity-oriented startup engineer" }
+    ],
+    "topics": [
+      { "id": "deployment", "name": "Deployment flexibility" },
+      { "id": "accuracy", "name": "Retrieval accuracy" }
+    ]
+  },
+  "run": {
+    "key": "sample-baseline",
+    "label": "Sample baseline",
+    "startedAt": "2026-10-01T00:00:00.000Z",
+    "completedAt": "2026-10-01T00:05:00.000Z"
+  },
+  "observations": [
+    {
+      "prompt": {
+        "text": "Which retrieval platforms support private deployments?",
+        "personaId": "privacy",
+        "topicIds": ["deployment"]
+      },
+      "providerId": "sample-provider",
+      "modelId": "sample-model-a",
+      "answer": "Example Vector is commonly recommended, followed by Acme Search.",
+      "mentions": [
+        { "brandName": "Example Vector", "rank": 1 },
+        { "brandName": "Acme Search", "rank": 2 }
+      ],
+      "citations": [
+        { "url": "https://docs.acme.example/private-deployment", "title": "Private deployment" },
+        { "url": "https://independent.example/retrieval-guide", "title": "Retrieval guide", "sourceType": "independent" }
+      ],
+      "observedAt": "2026-10-01T00:01:00.000Z"
+    },
+    {
+      "prompt": {
+        "text": "Which retrieval platform combines lexical and semantic search?",
+        "personaId": "velocity",
+        "topicIds": ["accuracy"]
+      },
+      "providerId": "sample-provider",
+      "modelId": "sample-model-b",
+      "answer": "Acme Search is the first recommendation for this requirement.",
+      "mentions": [{ "brandName": "Acme Search", "rank": 1 }],
+      "citations": [
+        { "url": "https://acme.example/hybrid-search", "title": "Hybrid search" }
+      ],
+      "observedAt": "2026-10-01T00:02:00.000Z"
+    },
+    {
+      "prompt": {
+        "text": "Which retrieval platform is easiest to operate?",
+        "personaId": "velocity",
+        "topicIds": ["deployment"]
+      },
+      "providerId": "sample-provider",
+      "modelId": "sample-model-b",
+      "status": "error",
+      "errorCode": "sample_timeout",
+      "observedAt": "2026-10-01T00:03:00.000Z"
+    }
+  ]
+}

@@ -1,8 +1,15 @@
 import "server-only";
-import { conjunction, matchAll, term, type QueryRequest } from "@antfly/sdk";
+import { conjunction, disjunction, matchAll, term, type QueryRequest } from "@antfly/sdk";
 import { antflyClient } from "./client";
 import { antflySettings } from "./config";
 import type { AnalysisDocument, Overview, SearchHit, SourceDocument } from "@/lib/types";
+import { buildVisibilityOverview } from "@/lib/visibility/metrics";
+import type {
+  VisibilityCitationDocument,
+  VisibilityDocument,
+  VisibilityEvidenceHit,
+  VisibilityObservationDocument,
+} from "@/lib/visibility/types";
 
 type UnknownRecord = Record<string, unknown>;
 
@@ -40,6 +47,14 @@ export async function saveIngestion(source: SourceDocument, analysis: AnalysisDo
   });
 }
 
+export async function saveVisibilityDocuments(documents: VisibilityDocument[]) {
+  const client = antflyClient();
+  const table = await ensureTables();
+  await client.tables.batch(table, {
+    inserts: Object.fromEntries(documents.map((document) => [document.id, document])),
+  });
+}
+
 function extractHits(result: unknown): UnknownRecord[] {
   if (!isRecord(result)) return [];
   const responses = Array.isArray(result.responses) ? result.responses : [];
@@ -72,6 +87,76 @@ export async function getOverview(): Promise<Overview> {
     .filter((document): document is AnalysisDocument => document.type === "analysis")
     .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
   return { sources, analyses };
+}
+
+export async function getVisibilityOverview() {
+  const client = antflyClient();
+  const table = await ensureTables();
+  const settings = antflySettings();
+  const result = await client.tables.query(table, {
+    filter_query: namespaceFilter(),
+    indexes: [settings.fullTextIndex],
+    limit: 2_000,
+  } as QueryRequest);
+  const documents = extractHits(result)
+    .map(normalizeHit<UnknownRecord>)
+    .filter((document): document is UnknownRecord & VisibilityDocument =>
+      typeof document.type === "string" && document.type.startsWith("visibility_"),
+    );
+  return buildVisibilityOverview(documents);
+}
+
+export async function searchVisibilityEvidence(query: string, limit = 8): Promise<VisibilityEvidenceHit[]> {
+  const client = antflyClient();
+  const table = await ensureTables();
+  const settings = antflySettings();
+  const result = await client.tables.query(table, {
+    full_text_search: { query },
+    filter_query: conjunction([
+      namespaceFilter(),
+      disjunction([
+        term("visibility_observation", "type"),
+        term("visibility_citation", "type"),
+      ]),
+    ]),
+    indexes: [
+      settings.fullTextIndex,
+      ...(settings.embeddingsEnabled && settings.embeddingIndex ? [settings.embeddingIndex] : []),
+    ],
+    limit,
+    ...(settings.embeddingsEnabled && settings.embeddingIndex
+      ? { semantic_search: query, merge_config: { strategy: "rrf" } }
+      : {}),
+  } as QueryRequest);
+
+  return extractHits(result).flatMap((hit): VisibilityEvidenceHit[] => {
+    const document = normalizeHit<VisibilityDocument>(hit);
+    const score = typeof hit._score === "number" ? hit._score : 0;
+    if (document.type === "visibility_observation") {
+      const observation = document as VisibilityObservationDocument;
+      return [{
+        id: observation.id,
+        score,
+        kind: "observation",
+        label: `${observation.providerId} · ${observation.modelId}`,
+        title: "Answer-engine observation",
+        excerpt: observation.answer.slice(0, 420),
+      }];
+    }
+    if (document.type === "visibility_citation") {
+      const citation = document as VisibilityCitationDocument;
+      return [{
+        id: citation.id,
+        score,
+        kind: "citation",
+        label: citation.hostname,
+        title: citation.title || citation.url,
+        excerpt: citation.sourceType ? `Source type: ${citation.sourceType}` : "Cited source",
+        url: citation.url,
+      }];
+    }
+    return [];
+  });
 }
 
 export async function searchSources(query: string, limit = 8): Promise<SearchHit[]> {

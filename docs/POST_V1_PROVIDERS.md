@@ -27,6 +27,8 @@ Add adapters independently so deployments can choose providers without changing 
 
 Every adapter must implement bounded timeouts, rate-limit handling, redacted errors, and provider-specific citation normalization. Credentials stay server-side.
 
+Adapters should normalize completed batches into the campaign import contract documented in [Visibility campaigns](VISIBILITY_CAMPAIGNS.md). Provider APIs remain observation sources; Antfly remains the system of record for prompts, responses, citations and derived evidence.
+
 ## V1.3: Monitoring
 
 - Store each provider response as an immutable Antfly observation.

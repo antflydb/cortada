@@ -8,12 +8,15 @@ The same application works with local Antfly Lite and Antfly Cloud Lite. The bro
 
 - Public-page ingestion with redirect-aware SSRF protection and a 2 MB response limit
 - Deterministic 100-point AEO audit
+- Antfly-native visibility campaigns with immutable prompts, observations, citations and evidence retrieval
 - Namespaced source and analysis documents in an Antfly table
 - Full-text retrieval, with optional Antfly-native embeddings and hybrid RRF search
 - Vercel-ready Next.js application
 - Fail-closed Basic access control for hosted deployments
 - Opt-in public-demo mode with bounded request bodies and per-client throttles
 - No OpenAI, Anthropic, or Perplexity dependency
+
+Visibility imports are optional and provider-neutral. Local or protected deployments can import normalized answer-engine observations; public-demo deployments expose the evidence dashboard read-only. See [Visibility campaigns](docs/VISIBILITY_CAMPAIGNS.md).
 
 ## Architecture
 
@@ -91,7 +94,7 @@ This is a Vercel deployment reference, not yet a Vercel Marketplace integration.
 
 ## Roadmap
 
-V1 deliberately proves the Antfly data and retrieval architecture before adding answer-engine providers. See [Post-V1 providers](docs/POST_V1_PROVIDERS.md).
+V1 deliberately proves the Antfly data and retrieval architecture before adding answer-engine providers. The visibility document model and evidence dashboard are available now; live collectors remain optional adapters. See [Visibility campaigns](docs/VISIBILITY_CAMPAIGNS.md) and [Post-V1 providers](docs/POST_V1_PROVIDERS.md).
 
 ## Development checks
 

@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { AnalysisDocument, Overview, SearchHit } from "@/lib/types";
+import type { VisibilityEvidenceHit, VisibilityOverview } from "@/lib/visibility/types";
 
 type ApiError = { ok?: false; error?: string };
 
@@ -10,6 +11,38 @@ async function jsonRequest<T>(url: string, init?: RequestInit): Promise<T> {
   const payload = (await response.json()) as T & ApiError;
   if (!response.ok) throw new Error(payload.error || `Request failed with HTTP ${response.status}`);
   return payload;
+}
+
+const emptyVisibility: VisibilityOverview = {
+  campaigns: [],
+  metrics: {
+    expectedObservations: 0,
+    successfulObservations: 0,
+    failedObservations: 0,
+    mentionCount: 0,
+    visibilityRate: null,
+    firstChoiceCount: 0,
+    firstChoiceRate: null,
+    coveredPersonas: 0,
+    totalPersonas: 0,
+    coveredModels: 0,
+    totalModels: 0,
+    citationCount: 0,
+    ownedCitationShare: null,
+  },
+  topCitedDomains: [],
+};
+
+async function loadWorkspace() {
+  const [overview, visibility] = await Promise.all([
+    jsonRequest<{ ok: true } & Overview>("/api/overview", { cache: "no-store" }),
+    jsonRequest<{ ok: true } & VisibilityOverview>("/api/visibility", { cache: "no-store" }),
+  ]);
+  return { overview, visibility };
+}
+
+function percentage(value: number | null) {
+  return value === null ? "—" : `${value}%`;
 }
 
 function gradeLabel(analysis?: AnalysisDocument) {
@@ -23,6 +56,7 @@ export function Workbench() {
   const [brandName, setBrandName] = useState("");
   const [url, setUrl] = useState("");
   const [overview, setOverview] = useState<Overview>({ sources: [], analyses: [] });
+  const [visibility, setVisibility] = useState<VisibilityOverview>(emptyVisibility);
   const [selected, setSelected] = useState<AnalysisDocument>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -30,13 +64,17 @@ export function Workbench() {
   const [searchQuery, setSearchQuery] = useState("");
   const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
   const [searching, setSearching] = useState(false);
+  const [visibilityQuery, setVisibilityQuery] = useState("");
+  const [visibilityHits, setVisibilityHits] = useState<VisibilityEvidenceHit[]>([]);
+  const [visibilitySearching, setVisibilitySearching] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const result = await jsonRequest<{ ok: true } & Overview>("/api/overview", { cache: "no-store" });
-      setOverview({ sources: result.sources, analyses: result.analyses });
-      setSelected((current) => current || result.analyses[0]);
+      const result = await loadWorkspace();
+      setOverview({ sources: result.overview.sources, analyses: result.overview.analyses });
+      setVisibility(result.visibility);
+      setSelected((current) => current || result.overview.analyses[0]);
       setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load Cortada");
@@ -46,10 +84,11 @@ export function Workbench() {
   }, []);
 
   useEffect(() => {
-    void jsonRequest<{ ok: true } & Overview>("/api/overview", { cache: "no-store" })
+    void loadWorkspace()
       .then((result) => {
-        setOverview({ sources: result.sources, analyses: result.analyses });
-        setSelected(result.analyses[0]);
+        setOverview({ sources: result.overview.sources, analyses: result.overview.analyses });
+        setVisibility(result.visibility);
+        setSelected(result.overview.analyses[0]);
         setMessage("");
       })
       .catch((error: unknown) => {
@@ -98,6 +137,24 @@ export function Workbench() {
       setMessage(error instanceof Error ? error.message : "Search failed");
     } finally {
       setSearching(false);
+    }
+  }
+
+  async function submitVisibilitySearch(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    setVisibilitySearching(true);
+    setMessage("");
+    try {
+      const result = await jsonRequest<{ ok: true; hits: VisibilityEvidenceHit[] }>("/api/visibility/search", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: visibilityQuery }),
+      });
+      setVisibilityHits(result.hits);
+    } catch (error) {
+      setMessage(error instanceof Error ? error.message : "Visibility evidence search failed");
+    } finally {
+      setVisibilitySearching(false);
     }
   }
 
@@ -157,6 +214,74 @@ export function Workbench() {
               <ol>{selected.suggestions.slice(0, 5).map((item) => <li key={item.id}><span className={`severity ${item.severity}`}>{item.severity}</span><div><strong>{item.title}</strong><p>{item.detail}</p></div></li>)}</ol>
             ) : <div className="empty">Cortada’s recommendations are rules-based in V1, so every score is inspectable and repeatable.</div>}
           </article>
+        </div>
+      </section>
+
+      <section className="visibility-section">
+        <div className="section-heading visibility-heading">
+          <div>
+            <p className="eyebrow">Antfly-native visibility campaigns</p>
+            <h2>Measure where the brand appears.</h2>
+          </div>
+          <span className="antfly-native">Evidence stored in Antfly</span>
+        </div>
+
+        <div className="visibility-metrics" aria-label="Latest visibility campaign metrics">
+          <article><span>Brand visibility</span><strong>{percentage(visibility.metrics.visibilityRate)}</strong><em>{visibility.metrics.mentionCount} mentioned conversations</em></article>
+          <article><span>First-choice rate</span><strong>{percentage(visibility.metrics.firstChoiceRate)}</strong><em>when the brand is visible</em></article>
+          <article><span>Persona coverage</span><strong>{visibility.latestCampaign ? `${visibility.metrics.coveredPersonas}/${visibility.metrics.totalPersonas}` : "—"}</strong><em>buyer groups reached</em></article>
+          <article><span>Model coverage</span><strong>{visibility.latestRun ? `${visibility.metrics.coveredModels}/${visibility.metrics.totalModels}` : "—"}</strong><em>provider models naming the brand</em></article>
+        </div>
+
+        {visibility.latestCampaign && visibility.latestRun ? (
+          <div className="visibility-evidence">
+            <article>
+              <span>Latest evidence baseline</span>
+              <h3>{visibility.latestCampaign.name}</h3>
+              <p>{visibility.latestCampaign.brandName} · {visibility.latestRun.label}</p>
+              <dl>
+                <div><dt>Conversations</dt><dd>{visibility.metrics.successfulObservations}/{visibility.metrics.expectedObservations}</dd></div>
+                <div><dt>Citations</dt><dd>{visibility.metrics.citationCount}</dd></div>
+                <div><dt>Owned citation share</dt><dd>{percentage(visibility.metrics.ownedCitationShare)}</dd></div>
+              </dl>
+            </article>
+            <article>
+              <span>Most cited domains</span>
+              {visibility.topCitedDomains.length ? (
+                <ol>{visibility.topCitedDomains.slice(0, 5).map((item) => <li key={item.hostname}><strong>{item.hostname}</strong><b>{item.citations}</b></li>)}</ol>
+              ) : <p>No citations were returned in this run.</p>}
+            </article>
+          </div>
+        ) : (
+          <div className="visibility-empty">
+            <div><span>01</span><strong>Import observations</strong><p>Private deployments accept a bounded, normalized campaign payload.</p></div>
+            <div><span>02</span><strong>Index the evidence</strong><p>Antfly stores prompts, responses, citations, personas and model metadata together.</p></div>
+            <div><span>03</span><strong>Track the baseline</strong><p>Cortada calculates visibility, first-choice, coverage and source metrics from the stored evidence.</p></div>
+          </div>
+        )}
+
+        <div className="visibility-search">
+          <div>
+            <span>Antfly evidence retrieval</span>
+            <h3>Search model answers and citations.</h3>
+            <p>Uses full-text retrieval and automatically adds semantic fusion when the deployment has an Antfly embedding index.</p>
+          </div>
+          <form onSubmit={submitVisibilitySearch}>
+            <input value={visibilityQuery} onChange={(event) => setVisibilityQuery(event.target.value)} placeholder="Why is the brand missing for privacy buyers?" minLength={2} required />
+            <button disabled={visibilitySearching}>{visibilitySearching ? "Searching…" : "Search evidence"}</button>
+          </form>
+          {visibilityHits.length > 0 && (
+            <div className="visibility-search-results">
+              {visibilityHits.map((hit) => (
+                <article key={hit.id}>
+                  <span>{hit.kind} · {hit.label}</span>
+                  <h4>{hit.title}</h4>
+                  <p>{hit.excerpt}</p>
+                  {hit.url && <a href={hit.url} target="_blank" rel="noreferrer">Open citation ↗</a>}
+                </article>
+              ))}
+            </div>
+          )}
         </div>
       </section>
 
