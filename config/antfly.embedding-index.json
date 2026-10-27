@@ -1,0 +1,20 @@
+{
+  "name": "cortada_evidence_v1",
+  "type": "embeddings",
+  "dimension": 384,
+  "coverage_policy": "partial",
+  "template": "{{#if (eq type \"source\")}}Brand: {{brandName}} | Title: {{title}} | URL: {{url}} | Description: {{description}} | Content: {{text}}{{/if}} {{#if (eq type \"visibility_prompt\")}}Persona: {{personaId}} | Topics: {{#each topicIds}}{{this}} {{/each}} | Buyer question: {{text}}{{/if}} {{#if (eq type \"visibility_observation\")}}Persona: {{personaId}} | Topics: {{#each topicIds}}{{this}} {{/each}} | Provider: {{providerId}} | Model: {{modelId}} | Answer: {{answer}} | Mentions: {{#each mentions}}{{brandName}} rank {{rank}}; {{/each}}{{/if}} {{#if (eq type \"visibility_citation\")}}Citation: {{title}} | Domain: {{hostname}} | URL: {{url}} | Source type: {{sourceType}}{{/if}}",
+  "embedder": {
+    "provider": "antfly",
+    "model": "BAAI/bge-small-en-v1.5"
+  },
+  "chunker": {
+    "provider": "antfly",
+    "model": "fixed",
+    "max_chunks": 32,
+    "text": {
+      "target_tokens": 200,
+      "overlap_tokens": 25
+    }
+  }
+}

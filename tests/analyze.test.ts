@@ -37,6 +37,7 @@ describe("analyzePage", () => {
     const result = analyzePage(page, { ...source, text, wordCount: text.split(/\s+/).length }, source.fetchedAt);
     expect(result.score).toBe(100);
     expect(result.grade).toBe("excellent");
+    expect(result.rubric).toEqual({ id: "standard-v1", version: 1, name: "Standard AEO" });
     expect(result.suggestions).toEqual([]);
   });
 

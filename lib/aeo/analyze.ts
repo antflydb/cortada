@@ -1,4 +1,5 @@
 import type { AnalysisDocument, PageSignals, SourceDocument, Suggestion } from "@/lib/types";
+import { activeAuditProfile, type AuditProfile } from "./rubrics";
 
 export type ParsedPage = {
   url: string;
@@ -9,19 +10,6 @@ export type ParsedPage = {
   externalLinkCount: number;
   hasFaqLanguage: boolean;
   hasStructuredData: boolean;
-};
-
-const weights: Record<keyof PageSignals, number> = {
-  title: 10,
-  metaDescription: 10,
-  singleH1: 10,
-  headingStructure: 10,
-  sufficientDepth: 15,
-  faqContent: 10,
-  structuredData: 10,
-  factualSignals: 10,
-  citations: 5,
-  answerFirstOpening: 10,
 };
 
 function headingStructureIsValid(headings: ParsedPage["headings"]): boolean {
@@ -36,7 +24,12 @@ function suggestion(id: string, severity: Suggestion["severity"], title: string,
   return { id, severity, title, detail };
 }
 
-export function analyzePage(page: ParsedPage, source: SourceDocument, analyzedAt: string): AnalysisDocument {
+export function analyzePage(
+  page: ParsedPage,
+  source: SourceDocument,
+  analyzedAt: string,
+  profile: AuditProfile = activeAuditProfile(),
+): AnalysisDocument {
   const words = page.text.split(/\s+/).filter(Boolean);
   const firstSentence = page.text.split(/[.!?]/)[0] || "";
   const h1Count = page.headings.filter((heading) => heading.level === 1).length;
@@ -53,7 +46,7 @@ export function analyzePage(page: ParsedPage, source: SourceDocument, analyzedAt
     answerFirstOpening: firstSentence.length >= 40 && firstSentence.length <= 240,
   };
   const score = (Object.keys(signals) as Array<keyof PageSignals>).reduce(
-    (total, key) => total + (signals[key] ? weights[key] : 0),
+    (total, key) => total + (signals[key] ? profile.weights[key] : 0),
     0,
   );
   const suggestions: Suggestion[] = [];
@@ -76,8 +69,9 @@ export function analyzePage(page: ParsedPage, source: SourceDocument, analyzedAt
     brandName: source.brandName,
     url: source.url,
     title: source.title,
+    rubric: { id: profile.id, version: profile.version, name: profile.name },
     score,
-    grade: score >= 80 ? "excellent" : score >= 60 ? "good" : "needs-work",
+    grade: score >= profile.grades.excellent ? "excellent" : score >= profile.grades.good ? "good" : "needs-work",
     signals,
     suggestions,
     analyzedAt,

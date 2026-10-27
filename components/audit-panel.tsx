@@ -1,0 +1,55 @@
+import type { AnalysisDocument, Overview } from "@/lib/types";
+import { productConfig } from "@/lib/product/config";
+
+type AuditPanelProps = {
+  loading: boolean;
+  overview: Overview;
+  selected?: AnalysisDocument;
+  averageScore: number;
+};
+
+function gradeLabel(analysis?: AnalysisDocument) {
+  if (!analysis) return "No audit yet";
+  if (analysis.grade === "excellent") return "Excellent";
+  if (analysis.grade === "good") return "Good foundation";
+  return "Needs work";
+}
+
+export function AuditPanel({ loading, overview, selected, averageScore }: AuditPanelProps) {
+  return (
+    <>
+      <section className="metrics" aria-label="Workspace metrics">
+        <article><span>Indexed sources</span><strong>{loading ? "—" : overview.sources.length}</strong><em>in Antfly</em></article>
+        <article><span>Audits completed</span><strong>{loading ? "—" : overview.analyses.length}</strong><em>deterministic</em></article>
+        <article><span>Average score</span><strong>{loading ? "—" : averageScore}</strong><em>out of 100</em></article>
+        <article><span>External model keys</span><strong>0</strong><em>inference stays in Antfly</em></article>
+      </section>
+
+      <section className="workspace">
+        <div className="section-heading">
+          <div><p className="eyebrow">Latest evidence</p><h2>{selected ? selected.title : "Your first audit appears here"}</h2></div>
+          {selected && <a href={selected.url} target="_blank" rel="noreferrer">Open source ↗</a>}
+        </div>
+
+        <div className="result-grid">
+          <article className="score-card">
+            <span>AEO readiness</span>
+            <div className="score-ring" style={{ "--score": `${selected?.score || 0}%` } as React.CSSProperties}>
+              <strong>{selected?.score ?? "—"}</strong><small>/100</small>
+            </div>
+            <h3>{gradeLabel(selected)}</h3>
+            <p>{selected ? `${selected.suggestions.length} focused improvements found.` : "Analyze a public page to establish a baseline."}</p>
+            {selected?.rubric && <small className="rubric-label">Rubric: {selected.rubric.name} v{selected.rubric.version}</small>}
+          </article>
+
+          <article className="suggestions-card">
+            <div className="card-title"><span>Priority improvements</span><small>{selected?.analyzedAt ? new Date(selected.analyzedAt).toLocaleString() : "Waiting for evidence"}</small></div>
+            {selected?.suggestions.length ? (
+              <ol>{selected.suggestions.slice(0, 5).map((item) => <li key={item.id}><span className={`severity ${item.severity}`}>{item.severity}</span><div><strong>{item.title}</strong><p>{item.detail}</p></div></li>)}</ol>
+            ) : <div className="empty">{productConfig.name} recommendations are rules-based, so every score is inspectable and repeatable.</div>}
+          </article>
+        </div>
+      </section>
+    </>
+  );
+}

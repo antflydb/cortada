@@ -1,0 +1,42 @@
+{
+  "standard-v1": {
+    "version": 1,
+    "name": "Standard AEO",
+    "weights": {
+      "title": 10,
+      "metaDescription": 10,
+      "singleH1": 10,
+      "headingStructure": 10,
+      "sufficientDepth": 15,
+      "faqContent": 10,
+      "structuredData": 10,
+      "factualSignals": 10,
+      "citations": 5,
+      "answerFirstOpening": 10
+    },
+    "grades": {
+      "excellent": 80,
+      "good": 60
+    }
+  },
+  "authority-v1": {
+    "version": 1,
+    "name": "Evidence authority",
+    "weights": {
+      "title": 8,
+      "metaDescription": 7,
+      "singleH1": 8,
+      "headingStructure": 8,
+      "sufficientDepth": 16,
+      "faqContent": 8,
+      "structuredData": 12,
+      "factualSignals": 15,
+      "citations": 10,
+      "answerFirstOpening": 8
+    },
+    "grades": {
+      "excellent": 80,
+      "good": 60
+    }
+  }
+}

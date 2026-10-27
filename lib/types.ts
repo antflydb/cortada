@@ -44,6 +44,11 @@ export type AnalysisDocument = {
   brandName: string;
   url: string;
   title: string;
+  rubric?: {
+    id: string;
+    version: number;
+    name: string;
+  };
   score: number;
   grade: "excellent" | "good" | "needs-work";
   signals: PageSignals;

@@ -4,10 +4,10 @@ import * as cheerio from "cheerio";
 import { assertSafePublicUrl } from "@/lib/security/public-url";
 import type { ParsedPage } from "@/lib/aeo/analyze";
 import type { SourceDocument } from "@/lib/types";
+import { crawlerUserAgent } from "@/lib/product/crawler";
 
 const MAX_BYTES = 2_000_000;
 const MAX_REDIRECTS = 3;
-const USER_AGENT = "Cortada-AEO-Auditor/0.1 (+https://github.com/antflydb)";
 
 async function readBoundedText(response: Response): Promise<string> {
   const declared = Number(response.headers.get("content-length") || 0);
@@ -35,7 +35,7 @@ async function fetchWithSafeRedirects(input: string): Promise<{ response: Respon
   for (let redirects = 0; redirects <= MAX_REDIRECTS; redirects += 1) {
     const response = await fetch(current, {
       redirect: "manual",
-      headers: { "User-Agent": USER_AGENT, Accept: "text/html,application/xhtml+xml" },
+      headers: { "User-Agent": crawlerUserAgent(), Accept: "text/html,application/xhtml+xml" },
       signal: AbortSignal.timeout(15_000),
     });
     if (response.status >= 300 && response.status < 400) {

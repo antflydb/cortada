@@ -21,7 +21,10 @@ ANTFLY_FULL_TEXT_INDEX=full_text_index_v0
 CORTADA_BASIC_AUTH_USER
 CORTADA_BASIC_AUTH_PASSWORD
 CORTADA_PUBLIC_DEMO=false
+CORTADA_AUDIT_PROFILE=standard-v1
 ```
+
+Set the `NEXT_PUBLIC_APP_*` and `NEXT_PUBLIC_BRAND_*` variables from [the white-label guide](WHITE_LABEL.md) before the deployment build when publishing a differently branded product.
 
 Optional Antfly-native embeddings:
 
@@ -55,6 +58,8 @@ Antfly-managed index can be created from the Antfarm **Indexes** screen in Raw J
   }
 }
 ```
+
+The canonical checked-in definition is [`config/antfly.embedding-index.json`](../config/antfly.embedding-index.json). A provisioning administrator can also create a missing configured index with `npm run setup:antfly -- --create`; use `ANTFLY_SETUP_API_KEY` temporarily and do not give that permission to the deployed application.
 
 `coverage_policy: "partial"` is intentional: Cortada keeps audit documents in the same table, but
 the evidence index only embeds source and visibility records. In hybrid requests, Cortada passes

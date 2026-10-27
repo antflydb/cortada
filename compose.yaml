@@ -1,0 +1,26 @@
+services:
+  cortada:
+    build:
+      context: .
+      args:
+        NEXT_PUBLIC_APP_NAME: "${NEXT_PUBLIC_APP_NAME:-Cortada}"
+        NEXT_PUBLIC_APP_MARK: "${NEXT_PUBLIC_APP_MARK:-C}"
+        NEXT_PUBLIC_APP_EYEBROW: "${NEXT_PUBLIC_APP_EYEBROW:-Answer engine intelligence}"
+        NEXT_PUBLIC_APP_HEADLINE: "${NEXT_PUBLIC_APP_HEADLINE:-Make your company easy to answer.}"
+        NEXT_PUBLIC_APP_DESCRIPTION: "${NEXT_PUBLIC_APP_DESCRIPTION:-Cortada turns your website into structured evidence.}"
+        NEXT_PUBLIC_APP_TITLE: "${NEXT_PUBLIC_APP_TITLE:-Cortada — AEO intelligence on Antfly}"
+        NEXT_PUBLIC_APP_META_DESCRIPTION: "${NEXT_PUBLIC_APP_META_DESCRIPTION:-Audit how clearly your website communicates with answer engines, powered by Antfly.}"
+        NEXT_PUBLIC_REPOSITORY_URL: "${NEXT_PUBLIC_REPOSITORY_URL:-https://github.com/antflydb/cortada}"
+        NEXT_PUBLIC_LICENSE_NAME: "${NEXT_PUBLIC_LICENSE_NAME:-Apache-2.0}"
+        NEXT_PUBLIC_BRAND_PRIMARY: "${NEXT_PUBLIC_BRAND_PRIMARY:-#176b4d}"
+        NEXT_PUBLIC_BRAND_ACCENT: "${NEXT_PUBLIC_BRAND_ACCENT:-#e66b2e}"
+    env_file:
+      - .env.local
+    environment:
+      HOSTNAME: 0.0.0.0
+      PORT: 3000
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    ports:
+      - "3000:3000"
+    restart: unless-stopped
