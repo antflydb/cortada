@@ -19,11 +19,11 @@ type RateLimitPolicy = {
 };
 
 const globalRateLimits = globalThis as typeof globalThis & {
-  cortadaRateLimits?: Map<string, LimitEntry>;
+  applicationRateLimits?: Map<string, LimitEntry>;
 };
 
-const entries = globalRateLimits.cortadaRateLimits ?? new Map<string, LimitEntry>();
-globalRateLimits.cortadaRateLimits = entries;
+const entries = globalRateLimits.applicationRateLimits ?? new Map<string, LimitEntry>();
+globalRateLimits.applicationRateLimits = entries;
 
 function positiveInteger(value: string | undefined, fallback: number): number {
   const parsed = Number(value);

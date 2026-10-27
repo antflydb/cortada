@@ -6,7 +6,7 @@ describe("antflySearchIndexes", () => {
     expect(
       antflySearchIndexes({
         embeddingsEnabled: false,
-        embeddingIndex: "cortada_evidence_v1",
+        embeddingIndex: "aeo_evidence_v1",
         fullTextIndex: "full_text_index_v0",
       }),
     ).toEqual(["full_text_index_v0"]);
@@ -16,10 +16,10 @@ describe("antflySearchIndexes", () => {
     expect(
       antflySearchIndexes({
         embeddingsEnabled: true,
-        embeddingIndex: "cortada_evidence_v1",
+        embeddingIndex: "aeo_evidence_v1",
         fullTextIndex: "full_text_index_v0",
       }),
-    ).toEqual(["cortada_evidence_v1"]);
+    ).toEqual(["aeo_evidence_v1"]);
   });
 
   it("falls back to full-text search when no embedding index is configured", () => {

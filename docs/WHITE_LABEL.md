@@ -10,7 +10,7 @@ Set these variables before a Vercel or Docker build:
 NEXT_PUBLIC_APP_NAME=Your Product
 NEXT_PUBLIC_APP_MARK=Y
 NEXT_PUBLIC_APP_EYEBROW=Answer engine intelligence
-NEXT_PUBLIC_APP_HEADLINE=Make your company easy to answer.
+NEXT_PUBLIC_APP_HEADLINE=Your AEO headline.
 NEXT_PUBLIC_APP_DESCRIPTION=Your product description.
 NEXT_PUBLIC_APP_TITLE=Your Product — AEO intelligence
 NEXT_PUBLIC_APP_META_DESCRIPTION=Your search and social description.
@@ -23,6 +23,12 @@ NEXT_PUBLIC_BRAND_ACCENT="#e66b2e"
 The two colors must be six-digit hex values. Rebuild after changing public variables because Next.js includes them in the browser bundle.
 
 Set `CORTADA_FETCH_USER_AGENT` to identify the deployed product to every site it audits, or leave it blank to derive an identity from the configured name and repository. Do not leave another product's name in this value.
+
+## One image per brand
+
+`NEXT_PUBLIC_*` values are compiled into the browser bundle. The Docker and Compose paths therefore produce one image per brand: `docker run -e NEXT_PUBLIC_APP_NAME=...` cannot rebrand an image that has already been built. Compose passes these values as build arguments and loads server-only settings from `.env.local` at runtime.
+
+This is intentional for a forkable product template and keeps the homepage statically prerendered. If a future distribution needs one immutable image that customers rebrand at deployment time, move the public product configuration behind server-only variables and render it dynamically. That is a deployment-model change, not a backward-compatible environment tweak.
 
 ## Audit profiles
 

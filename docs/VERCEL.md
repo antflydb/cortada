@@ -38,7 +38,7 @@ Antfly-managed index can be created from the Antfarm **Indexes** screen in Raw J
 
 ```json
 {
-  "name": "cortada_evidence_v1",
+  "name": "aeo_evidence_v1",
   "type": "embeddings",
   "dimension": 384,
   "coverage_policy": "partial",
