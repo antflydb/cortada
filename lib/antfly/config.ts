@@ -9,6 +9,10 @@ export type AntflySettings = {
   fullTextIndex: string;
   embeddingsEnabled: boolean;
   embeddingIndex?: string;
+  visualSearchEnabled: boolean;
+  visualIndex?: string;
+  pdfExtractionEnabled: boolean;
+  pdfTextIndex?: string;
 };
 
 export function antflySettings(): AntflySettings {
@@ -31,5 +35,9 @@ export function antflySettings(): AntflySettings {
     fullTextIndex: process.env.ANTFLY_FULL_TEXT_INDEX?.trim() || "full_text_index_v0",
     embeddingsEnabled: process.env.ANTFLY_ENABLE_EMBEDDINGS === "true",
     embeddingIndex: process.env.ANTFLY_EMBEDDING_INDEX?.trim() || undefined,
+    visualSearchEnabled: process.env.ANTFLY_ENABLE_MULTIMODAL === "true",
+    visualIndex: process.env.ANTFLY_VISUAL_INDEX?.trim() || undefined,
+    pdfExtractionEnabled: process.env.ANTFLY_ENABLE_PDF_EXTRACTION === "true",
+    pdfTextIndex: process.env.ANTFLY_PDF_TEXT_INDEX?.trim() || undefined,
   };
 }

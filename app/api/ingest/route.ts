@@ -1,11 +1,12 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
 import { analyzePage } from "@/lib/aeo/analyze";
+import { analyzeMultimodalEvidence } from "@/lib/multimodal/analyze";
 import { saveIngestion } from "@/lib/antfly/repository";
 import { antflySettings } from "@/lib/antfly/config";
 import { limitRequest, rateLimitHeaders, tooManyRequests } from "@/lib/security/rate-limit";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
-import { fetchAndParsePage, toSourceDocument } from "@/lib/web/fetch-page";
+import { fetchAndParsePage, toAssetDocuments, toSourceDocument } from "@/lib/web/fetch-page";
 
 export const runtime = "nodejs";
 
@@ -24,9 +25,11 @@ export async function POST(request: Request) {
     const page = await fetchAndParsePage(input.url);
     const source = toSourceDocument(page, input.brandName, fetchedAt, antflySettings().namespace);
     const analysis = analyzePage(page, source, fetchedAt);
-    await saveIngestion(source, analysis);
+    const assets = toAssetDocuments(page, source, fetchedAt);
+    const multimodalAnalysis = analyzeMultimodalEvidence(source, assets, fetchedAt);
+    await saveIngestion(source, analysis, assets, multimodalAnalysis);
     return NextResponse.json(
-      { ok: true, source, analysis },
+      { ok: true, source, analysis, assets, multimodalAnalysis },
       { headers: rateLimitHeaders(rateLimit) },
     );
   } catch (error) {

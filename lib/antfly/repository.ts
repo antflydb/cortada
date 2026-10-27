@@ -3,7 +3,15 @@ import { conjunction, disjunction, matchAll, term, type QueryRequest } from "@an
 import { antflyClient } from "./client";
 import { antflySettings } from "./config";
 import { antflySearchIndexes } from "./search-indexes";
-import type { AnalysisDocument, Overview, SearchHit, SourceDocument } from "@/lib/types";
+import type {
+  AnalysisDocument,
+  AssetDocument,
+  MultimodalAnalysisDocument,
+  MultimodalSearchHit,
+  Overview,
+  SearchHit,
+  SourceDocument,
+} from "@/lib/types";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
   VisibilityCitationDocument,
@@ -37,13 +45,20 @@ export async function ensureTables(): Promise<string> {
   return tableSetup;
 }
 
-export async function saveIngestion(source: SourceDocument, analysis: AnalysisDocument) {
+export async function saveIngestion(
+  source: SourceDocument,
+  analysis: AnalysisDocument,
+  assets: AssetDocument[] = [],
+  multimodalAnalysis?: MultimodalAnalysisDocument,
+) {
   const client = antflyClient();
   const table = await ensureTables();
   await client.tables.batch(table, {
     inserts: {
       [source.id]: source,
       [analysis.id]: analysis,
+      ...Object.fromEntries(assets.map((asset) => [asset.id, asset])),
+      ...(multimodalAnalysis ? { [multimodalAnalysis.id]: multimodalAnalysis } : {}),
     },
   });
 }
@@ -82,12 +97,30 @@ export async function getOverview(): Promise<Overview> {
     indexes: [settings.fullTextIndex],
     limit: 500,
   } as QueryRequest);
-  const documents = extractHits(result).map(normalizeHit<SourceDocument | AnalysisDocument>);
+  const documents = extractHits(result).map(
+    normalizeHit<SourceDocument | AnalysisDocument | AssetDocument | MultimodalAnalysisDocument>,
+  );
   const sources = documents.filter((document): document is SourceDocument => document.type === "source");
   const analyses = documents
     .filter((document): document is AnalysisDocument => document.type === "analysis")
     .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
-  return { sources, analyses };
+  const assets = documents
+    .filter((document): document is AssetDocument => document.type === "asset")
+    .sort((a, b) => b.discoveredAt.localeCompare(a.discoveredAt));
+  const multimodalAnalyses = documents
+    .filter((document): document is MultimodalAnalysisDocument => document.type === "multimodal_analysis")
+    .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
+  return {
+    sources,
+    analyses,
+    assets,
+    multimodalAnalyses,
+    multimodalCapabilities: {
+      assetDiscovery: true,
+      visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
+      pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
+    },
+  };
 }
 
 export async function getVisibilityOverview() {
@@ -178,6 +211,58 @@ export async function searchSources(query: string, limit = 8): Promise<SearchHit
   }));
 }
 
+export async function searchMultimodalEvidence(query: string, limit = 8): Promise<MultimodalSearchHit[]> {
+  const client = antflyClient();
+  const table = await ensureTables();
+  const settings = antflySettings();
+  const searches: Promise<unknown>[] = [];
+
+  if (settings.visualSearchEnabled && settings.visualIndex) {
+    searches.push(client.tables.query(table, {
+      semantic_search: query,
+      filter_query: conjunction([
+        namespaceFilter(),
+        term("asset", "type"),
+        term("image", "assetKind"),
+        term("true", "indexable"),
+      ]),
+      indexes: [settings.visualIndex],
+      limit,
+    } as QueryRequest));
+  }
+  if (settings.pdfExtractionEnabled && settings.pdfTextIndex) {
+    searches.push(client.tables.query(table, {
+      full_text_search: { query },
+      filter_query: namespaceFilter(),
+      indexes: [settings.pdfTextIndex],
+      limit,
+    } as QueryRequest));
+  }
+  if (!searches.length) {
+    throw new Error("Antfly multimodal retrieval is not enabled for this deployment");
+  }
+
+  const results = await Promise.all(searches);
+  const hits = results.flatMap(extractHits).map((hit): MultimodalSearchHit => {
+    const document = normalizeHit<UnknownRecord>(hit);
+    const isImage = document.type === "asset" && document.assetKind === "image";
+    const text = typeof document.text === "string" ? document.text : "";
+    return {
+      id: String(document.id || hit._id || hit._key || "unknown"),
+      score: typeof hit._score === "number" ? hit._score : 0,
+      kind: isImage ? "image" : "pdf-page",
+      title: typeof document.title === "string"
+        ? document.title
+        : typeof document.filename === "string" ? document.filename : isImage ? "Image evidence" : "PDF evidence",
+      ...(typeof document.url === "string" ? { url: document.url } : {}),
+      ...(typeof document.sourceUrl === "string" ? { sourceUrl: document.sourceUrl } : {}),
+      ...(typeof document.altText === "string" ? { altText: document.altText } : {}),
+      ...(text ? { excerpt: text.slice(0, 420) } : {}),
+    };
+  });
+  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+}
+
 export async function connectionStatus() {
   const settings = antflySettings();
   const started = Date.now();
@@ -193,6 +278,10 @@ export async function connectionStatus() {
     table,
     namespace: settings.namespace,
     embeddingsEnabled: settings.embeddingsEnabled,
+    multimodal: {
+      visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
+      pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
+    },
     latencyMs: Date.now() - started,
   };
 }

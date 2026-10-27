@@ -61,6 +61,18 @@ Antfly-managed index can be created from the Antfarm **Indexes** screen in Raw J
 
 The canonical checked-in definition is [`config/antfly.embedding-index.json`](../config/antfly.embedding-index.json). A provisioning administrator can also create a missing configured index with `npm run setup:antfly -- --create`; use `ANTFLY_SETUP_API_KEY` temporarily and do not give that permission to the deployed application.
 
+Optional Antfly-native multimodal retrieval is configured separately:
+
+```text
+ANTFLY_ENABLE_MULTIMODAL=true
+ANTFLY_VISUAL_INDEX=aeo_visual_v1
+ANTFLY_ENABLE_PDF_EXTRACTION=true
+ANTFLY_PDF_TEXT_INDEX=aeo_pdf_text_v1
+CORTADA_MEDIA_HOST_ALLOWLIST=trusted-cdn.example.com
+```
+
+Do not enable these variables until the target Cloud Lite instance accepts the checked-in visual and PDF index definitions. The application always discovers and audits asset metadata; these flags control model-backed retrieval and durable extraction. See [Multimodal evidence](MULTIMODAL.md).
+
 `coverage_policy: "partial"` is intentional: Cortada keeps audit documents in the same table, but
 the evidence index only embeds source and visibility records. In hybrid requests, Cortada passes
 only the vector index in `indexes`; Antfly automatically uses the table's active full-text index
@@ -78,7 +90,7 @@ After deployment:
 2. Open `/api/health` and verify Antfly is ready.
 3. Ingest a controlled public page.
 4. Search for a phrase from that page.
-5. Confirm the namespaced source and analysis documents appear in Antfly.
+5. Confirm the namespaced source, analysis, asset, and multimodal-analysis documents appear in Antfly.
 
 The health endpoint exposes status, mode, embedding configuration, and latency. It never returns credentials or the Antfly endpoint.
 

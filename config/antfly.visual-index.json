@@ -1,0 +1,11 @@
+{
+  "name": "aeo_visual_v1",
+  "type": "embeddings",
+  "coverage_policy": "partial",
+  "template": "{{#if (eq type \"asset\")}}{{#if (eq assetKind \"image\")}}{{#if indexable}}{{remoteMedia url=url}}{{/if}}{{/if}}{{/if}}",
+  "embedder": {
+    "provider": "antfly",
+    "model": "antflydb/clipclap"
+  },
+  "distance_metric": "cosine"
+}

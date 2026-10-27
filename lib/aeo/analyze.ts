@@ -1,4 +1,4 @@
-import type { AnalysisDocument, PageSignals, SourceDocument, Suggestion } from "@/lib/types";
+import type { AnalysisDocument, DiscoveredAsset, PageSignals, SourceDocument, Suggestion } from "@/lib/types";
 import { activeAuditProfile, type AuditProfile } from "./rubrics";
 
 export type ParsedPage = {
@@ -10,6 +10,7 @@ export type ParsedPage = {
   externalLinkCount: number;
   hasFaqLanguage: boolean;
   hasStructuredData: boolean;
+  assets: DiscoveredAsset[];
 };
 
 function headingStructureIsValid(headings: ParsedPage["headings"]): boolean {

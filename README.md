@@ -13,12 +13,16 @@ Run it as Cortada or rebrand it for your own company. The same application works
 - Antfly-native visibility campaigns with immutable prompts, observations, citations and evidence retrieval
 - Namespaced source and analysis documents in an Antfly table
 - Full-text retrieval, with optional Antfly-native embeddings and hybrid RRF search
+- Bounded image/PDF discovery, first-class Antfly asset records, and a separate multimodal readiness audit
+- Feature-gated Antfly ClipClap visual retrieval and durable PDF page extraction/OCR
 - Vercel-ready and container-ready Next.js application
 - Fail-closed Basic access control for hosted deployments
 - Opt-in public-demo mode with bounded request bodies and per-client throttles
 - No separate OpenAI, Anthropic, or Perplexity key required for V1 retrieval
 
 Visibility imports are optional and provider-neutral. Local or protected deployments can import normalized answer-engine observations; public-demo deployments expose the evidence dashboard read-only. See [Visibility campaigns](docs/VISIBILITY_CAMPAIGNS.md).
+
+Multimodal discovery and deterministic readiness checks work without an inference model. Cross-modal image retrieval and durable PDF extraction require compatible Antfly runtime capabilities and are deliberately opt-in. See [Multimodal evidence](docs/MULTIMODAL.md).
 
 ## Architecture
 
@@ -84,6 +88,11 @@ The product uses the `default` table created by Antfly Lite. Set `ANTFLY_ENABLE_
 | `ANTFLY_FULL_TEXT_INDEX` | Yes | Full-text index; defaults to `full_text_index_v0` |
 | `ANTFLY_ENABLE_EMBEDDINGS` | No | Enables Antfly embeddings and hybrid RRF search |
 | `ANTFLY_EMBEDDING_INDEX` | When enabled | Existing Antfly embedding index name |
+| `ANTFLY_ENABLE_MULTIMODAL` | No | Enables Antfly text-to-image retrieval |
+| `ANTFLY_VISUAL_INDEX` | When enabled | ClipClap visual index name |
+| `ANTFLY_ENABLE_PDF_EXTRACTION` | No | Enables durable PDF page extraction and full-text retrieval |
+| `ANTFLY_PDF_TEXT_INDEX` | When enabled | Artifact-backed PDF text index name |
+| `CORTADA_MEDIA_HOST_ALLOWLIST` | No | Additional comma-separated image hosts Antfly may fetch |
 | `CORTADA_BASIC_AUTH_USER` | Vercel | Deployment access username |
 | `CORTADA_BASIC_AUTH_PASSWORD` | Vercel | Deployment access password |
 | `CORTADA_PUBLIC_DEMO` | No | Set to `true` only after configuring public traffic controls |

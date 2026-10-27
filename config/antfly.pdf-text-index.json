@@ -1,0 +1,23 @@
+{
+  "name": "aeo_pdf_text_v1",
+  "type": "full_text",
+  "field": "text",
+  "artifact_name": "aeo_pdf_chunks_v1",
+  "enrichments": [
+    {
+      "name": "aeo_pdf_units_v1",
+      "kind": "asset",
+      "field": "pdfUrl",
+      "content_type": "application/json",
+      "producer_json": "{\"type\":\"document_extraction\",\"config\":{\"route_preset\":\"mixed_files\",\"source\":{\"filename_field\":\"title\",\"content_type_field\":\"mimeType\"}}}"
+    },
+    {
+      "name": "aeo_pdf_chunks_v1",
+      "kind": "chunk",
+      "field": "text",
+      "source_artifact_name": "aeo_pdf_units_v1",
+      "chunk_size": 256,
+      "chunk_overlap": 32
+    }
+  ]
+}
