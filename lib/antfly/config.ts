@@ -9,6 +9,8 @@ export type AntflySettings = {
   fullTextIndex: string;
   embeddingsEnabled: boolean;
   embeddingIndex?: string;
+  assetMetadataSearchEnabled: boolean;
+  assetMetadataIndex?: string;
   visualSearchEnabled: boolean;
   visualIndex?: string;
   pdfExtractionEnabled: boolean;
@@ -35,6 +37,8 @@ export function antflySettings(): AntflySettings {
     fullTextIndex: process.env.ANTFLY_FULL_TEXT_INDEX?.trim() || "full_text_index_v0",
     embeddingsEnabled: process.env.ANTFLY_ENABLE_EMBEDDINGS === "true",
     embeddingIndex: process.env.ANTFLY_EMBEDDING_INDEX?.trim() || undefined,
+    assetMetadataSearchEnabled: process.env.ANTFLY_ENABLE_ASSET_SEARCH === "true",
+    assetMetadataIndex: process.env.ANTFLY_ASSET_INDEX?.trim() || undefined,
     visualSearchEnabled: process.env.ANTFLY_ENABLE_MULTIMODAL === "true",
     visualIndex: process.env.ANTFLY_VISUAL_INDEX?.trim() || undefined,
     pdfExtractionEnabled: process.env.ANTFLY_ENABLE_PDF_EXTRACTION === "true",

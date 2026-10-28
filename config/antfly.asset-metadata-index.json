@@ -1,0 +1,11 @@
+{
+  "name": "aeo_asset_metadata_v1",
+  "type": "embeddings",
+  "dimension": 384,
+  "coverage_policy": "partial",
+  "template": "{{#if (eq type \"asset\")}}Asset type: {{assetKind}} | Title: {{title}} | Alt text: {{altText}} | Context: {{context}} | Asset URL: {{url}} | Source page: {{sourceUrl}}{{/if}}",
+  "embedder": {
+    "provider": "antfly",
+    "model": "BAAI/bge-small-en-v1.5"
+  }
+}

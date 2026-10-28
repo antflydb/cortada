@@ -54,7 +54,12 @@ export function Workbench() {
     analyses: [],
     assets: [],
     multimodalAnalyses: [],
-    multimodalCapabilities: { assetDiscovery: true, visualSearchEnabled: false, pdfExtractionEnabled: false },
+    multimodalCapabilities: {
+      assetDiscovery: true,
+      assetMetadataSearchEnabled: false,
+      visualSearchEnabled: false,
+      pdfExtractionEnabled: false,
+    },
   });
   const [visibility, setVisibility] = useState<VisibilityOverview>(emptyVisibility);
   const [selected, setSelected] = useState<AnalysisDocument>();

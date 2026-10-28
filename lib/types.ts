@@ -120,6 +120,7 @@ export type MultimodalAnalysisDocument = {
 
 export type MultimodalCapabilities = {
   assetDiscovery: true;
+  assetMetadataSearchEnabled: boolean;
   visualSearchEnabled: boolean;
   pdfExtractionEnabled: boolean;
 };

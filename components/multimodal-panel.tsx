@@ -34,7 +34,14 @@ export function MultimodalPanel({
   const relevantAssets = analysis
     ? assets.filter((asset) => asset.sourceId === analysis.sourceId)
     : assets.slice(0, 12);
-  const retrievalEnabled = capabilities.visualSearchEnabled || capabilities.pdfExtractionEnabled;
+  const retrievalEnabled = capabilities.assetMetadataSearchEnabled
+    || capabilities.visualSearchEnabled
+    || capabilities.pdfExtractionEnabled;
+  const retrievalDescription = capabilities.visualSearchEnabled
+    ? "Antfly searches approved images in a shared text-image vector space and extracted PDF text when enabled."
+    : capabilities.assetMetadataSearchEnabled
+      ? "Antfly semantic search retrieves images and PDFs from their durable alt text, captions, labels, and surrounding context. Pixel embeddings remain feature-gated."
+      : "Asset discovery is active. Retrieval stays disabled until the deployment has a compatible Antfly index.";
 
   return (
     <section className="multimodal-section">
@@ -47,7 +54,7 @@ export function MultimodalPanel({
       </div>
 
       <div className="multimodal-metrics">
-        <article><span>Images found</span><strong>{analysis?.imageCount ?? 0}</strong><em>{analysis?.indexableImageCount ?? 0} approved for visual indexing</em></article>
+        <article><span>Images found</span><strong>{analysis?.imageCount ?? 0}</strong><em>{analysis?.indexableImageCount ?? 0} on trusted asset hosts</em></article>
         <article><span>PDFs found</span><strong>{analysis?.pdfCount ?? 0}</strong><em>{capabilities.pdfExtractionEnabled ? "durable extraction configured" : "extraction feature-gated"}</em></article>
         <article><span>Image alt coverage</span><strong>{percentage(analysis?.imageAltCoverage)}</strong><em>deterministic HTML signal</em></article>
         <article><span>Multimodal readiness</span><strong>{analysis?.score ?? "—"}</strong><em>{analysis?.grade === "no-assets" ? "no assets on the audited page" : "separate from the AEO score"}</em></article>
@@ -76,7 +83,7 @@ export function MultimodalPanel({
         <div>
           <span>Cross-modal retrieval</span>
           <h3>Search visual and PDF evidence by meaning</h3>
-          <p>{retrievalEnabled ? "Antfly searches approved images in a shared text-image vector space and extracted PDF text when enabled." : "Asset discovery is active. Retrieval stays disabled until the deployment has the required Antfly indexes and inference runtime."}</p>
+          <p>{retrievalDescription}</p>
         </div>
         <form onSubmit={onSubmit}>
           <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="e.g. diagram showing private deployment" minLength={2} maxLength={300} disabled={!retrievalEnabled} required />

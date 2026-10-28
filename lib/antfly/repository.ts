@@ -117,6 +117,7 @@ export async function getOverview(): Promise<Overview> {
     multimodalAnalyses,
     multimodalCapabilities: {
       assetDiscovery: true,
+      assetMetadataSearchEnabled: settings.assetMetadataSearchEnabled && Boolean(settings.assetMetadataIndex),
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
     },
@@ -217,6 +218,15 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
   const settings = antflySettings();
   const searches: Promise<unknown>[] = [];
 
+  if (settings.assetMetadataSearchEnabled && settings.assetMetadataIndex) {
+    searches.push(client.tables.query(table, {
+      semantic_search: query,
+      filter_query: conjunction([namespaceFilter(), term("asset", "type")]),
+      indexes: [settings.assetMetadataIndex],
+      limit,
+    } as QueryRequest));
+  }
+
   if (settings.visualSearchEnabled && settings.visualIndex) {
     searches.push(client.tables.query(table, {
       semantic_search: query,
@@ -249,11 +259,12 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
   const hits = results.flatMap(extractHits).map((hit): MultimodalSearchHit => {
     const document = normalizeHit<UnknownRecord>(hit);
     const isImage = document.type === "asset" && document.assetKind === "image";
+    const isPdf = document.type === "asset" && document.assetKind === "pdf";
     const text = typeof document.text === "string" ? document.text : "";
     return {
       id: String(document.id || hit._id || hit._key || "unknown"),
       score: typeof hit._score === "number" ? hit._score : 0,
-      kind: isImage ? "image" : "pdf-page",
+      kind: isImage ? "image" : isPdf ? "pdf" : "pdf-page",
       title: typeof document.title === "string"
         ? document.title
         : typeof document.filename === "string" ? document.filename : isImage ? "Image evidence" : "PDF evidence",
@@ -263,7 +274,12 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
       ...(text ? { excerpt: text.slice(0, 420) } : {}),
     };
   });
-  return hits.sort((a, b) => b.score - a.score).slice(0, limit);
+  const bestById = new Map<string, MultimodalSearchHit>();
+  for (const hit of hits) {
+    const current = bestById.get(hit.id);
+    if (!current || hit.score > current.score) bestById.set(hit.id, hit);
+  }
+  return [...bestById.values()].sort((a, b) => b.score - a.score).slice(0, limit);
 }
 
 export async function connectionStatus() {
@@ -282,6 +298,7 @@ export async function connectionStatus() {
     namespace: settings.namespace,
     embeddingsEnabled: settings.embeddingsEnabled,
     multimodal: {
+      assetMetadataSearchEnabled: settings.assetMetadataSearchEnabled && Boolean(settings.assetMetadataIndex),
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
     },

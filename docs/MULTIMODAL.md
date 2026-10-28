@@ -10,6 +10,19 @@ The deterministic multimodal readiness report measures useful image alt-text cov
 
 ## Antfly visual retrieval
 
+### Semantic asset metadata
+
+The portable baseline uses [`antfly.asset-metadata-index.json`](../config/antfly.asset-metadata-index.json) and the standard `BAAI/bge-small-en-v1.5` model. Antfly embeds durable alt text, captions, PDF labels, nearby context, and source identity. This makes assets retrievable by meaning on small Lite runtimes without claiming that the model inspected their pixels.
+
+```text
+ANTFLY_ENABLE_ASSET_SEARCH=true
+ANTFLY_ASSET_INDEX=aeo_asset_metadata_v1
+```
+
+This is Antfly's application-managed-description ingestion shape. It is the recommended production fallback when a runtime does not advertise image inputs.
+
+### Native pixel embeddings
+
 The checked-in [`antfly.visual-index.json`](../config/antfly.visual-index.json) uses `antflydb/clipclap`, `remoteMedia`, partial coverage, and cosine distance. ClipClap places text and images in one vector space, so a query such as “diagram showing private deployment” can retrieve a matching image without an external model API.
 
 Enable it only after the target runtime can serve the model and the index exists:
@@ -29,7 +42,7 @@ This application-level allowlist limits which discovered assets enter the visual
 
 ## Durable PDF evidence
 
-The checked-in [`antfly.pdf-text-index.json`](../config/antfly.pdf-text-index.json) defines a `document_extraction` asset producer and a chunk stream. Antfly downloads a PDF from the `pdfUrl` field, persists page units and chunks, extracts born-digital text, and can OCR pages without native text when the runtime has its document reader available. Failed extraction remains visible as repair debt instead of silently disappearing.
+The checked-in [`antfly.pdf-text-index.json`](../config/antfly.pdf-text-index.json) defines a `document_extraction` asset producer and a chunk stream. Antfly downloads a PDF from the `pdfUrl` field, persists page units and chunks, extracts born-digital text, and can OCR pages without native text when the runtime has its document reader available. Failed extraction remains visible as repair debt instead of silently disappearing. A deployment must keep this flag off when its manifest reports `ModelNotFound` or another extraction failure.
 
 Enable it only after the runtime accepts the artifact-backed index:
 

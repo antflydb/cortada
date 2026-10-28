@@ -64,6 +64,8 @@ The canonical checked-in definition is [`config/antfly.embedding-index.json`](..
 Optional Antfly-native multimodal retrieval is configured separately:
 
 ```text
+ANTFLY_ENABLE_ASSET_SEARCH=true
+ANTFLY_ASSET_INDEX=aeo_asset_metadata_v1
 ANTFLY_ENABLE_MULTIMODAL=true
 ANTFLY_VISUAL_INDEX=aeo_visual_v1
 ANTFLY_ENABLE_PDF_EXTRACTION=true
@@ -71,7 +73,7 @@ ANTFLY_PDF_TEXT_INDEX=aeo_pdf_text_v1
 CORTADA_MEDIA_HOST_ALLOWLIST=trusted-cdn.example.com
 ```
 
-Do not enable these variables until the target Cloud Lite instance accepts the checked-in visual and PDF index definitions. The application always discovers and audits asset metadata; these flags control model-backed retrieval and durable extraction. See [Multimodal evidence](MULTIMODAL.md).
+Enable the asset metadata index on runtimes with the standard BGE model. Do not enable the visual or PDF variables until the target Cloud Lite instance both accepts the checked-in definition and produces a successful vector or artifact manifest. The application always discovers and audits asset metadata; these flags control model-backed retrieval and durable extraction. See [Multimodal evidence](MULTIMODAL.md).
 
 `coverage_policy: "partial"` is intentional: Cortada keeps audit documents in the same table, but
 the evidence index only embeds source and visibility records. In hybrid requests, Cortada passes

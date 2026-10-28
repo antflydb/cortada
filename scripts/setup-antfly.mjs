@@ -12,6 +12,8 @@ const table = (process.env.ANTFLY_TABLE || "default").trim();
 const fullTextIndex = (process.env.ANTFLY_FULL_TEXT_INDEX || "full_text_index_v0").trim();
 const embeddingsEnabled = process.env.ANTFLY_ENABLE_EMBEDDINGS === "true";
 const embeddingIndex = process.env.ANTFLY_EMBEDDING_INDEX?.trim();
+const assetMetadataSearchEnabled = process.env.ANTFLY_ENABLE_ASSET_SEARCH === "true";
+const assetMetadataIndex = process.env.ANTFLY_ASSET_INDEX?.trim();
 const visualSearchEnabled = process.env.ANTFLY_ENABLE_MULTIMODAL === "true";
 const visualIndex = process.env.ANTFLY_VISUAL_INDEX?.trim();
 const pdfExtractionEnabled = process.env.ANTFLY_ENABLE_PDF_EXTRACTION === "true";
@@ -21,6 +23,9 @@ const createMissing = process.argv.includes("--create");
 
 if (embeddingsEnabled && !embeddingIndex) {
   throw new Error("ANTFLY_EMBEDDING_INDEX is required when ANTFLY_ENABLE_EMBEDDINGS=true");
+}
+if (assetMetadataSearchEnabled && !assetMetadataIndex) {
+  throw new Error("ANTFLY_ASSET_INDEX is required when ANTFLY_ENABLE_ASSET_SEARCH=true");
 }
 if (visualSearchEnabled && !visualIndex) {
   throw new Error("ANTFLY_VISUAL_INDEX is required when ANTFLY_ENABLE_MULTIMODAL=true");
@@ -72,7 +77,8 @@ async function ensureIndex(enabled, indexName, configFile, label) {
 }
 
 await ensureIndex(embeddingsEnabled, embeddingIndex, "antfly.embedding-index.json", "Embedding");
+await ensureIndex(assetMetadataSearchEnabled, assetMetadataIndex, "antfly.asset-metadata-index.json", "Asset metadata");
 await ensureIndex(visualSearchEnabled, visualIndex, "antfly.visual-index.json", "Visual");
 await ensureIndex(pdfExtractionEnabled, pdfTextIndex, "antfly.pdf-text-index.json", "PDF text");
 
-console.log(`Antfly setup is ready: table=${table}, fullText=${fullTextIndex}, embeddings=${embeddingsEnabled ? embeddingIndex : "disabled"}, visual=${visualSearchEnabled ? visualIndex : "disabled"}, pdf=${pdfExtractionEnabled ? pdfTextIndex : "disabled"}.`);
+console.log(`Antfly setup is ready: table=${table}, fullText=${fullTextIndex}, embeddings=${embeddingsEnabled ? embeddingIndex : "disabled"}, assets=${assetMetadataSearchEnabled ? assetMetadataIndex : "disabled"}, visual=${visualSearchEnabled ? visualIndex : "disabled"}, pdf=${pdfExtractionEnabled ? pdfTextIndex : "disabled"}.`);
