@@ -81,14 +81,14 @@ export function Workbench() {
   const [multimodalHits, setMultimodalHits] = useState<MultimodalSearchHit[]>([]);
   const [multimodalSearching, setMultimodalSearching] = useState(false);
 
-  const refresh = useCallback(async () => {
+  const refresh = useCallback(async (preserveMessage = false) => {
     setLoading(true);
     try {
       const result = await loadWorkspace();
       setOverview(result.overview);
       setVisibility(result.visibility);
       setSelected((current) => current || result.overview.analyses[0]);
-      setMessage("");
+      if (!preserveMessage) setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load the workspace");
     } finally {
@@ -131,8 +131,12 @@ export function Workbench() {
         body: JSON.stringify({ brandName, url, maxPages }),
       });
       setSelected(result.analyses[0]);
-      await refresh();
       setMessage(`${result.run.completedPages} page(s) were indexed and audited in Antfly${result.run.failures.length ? `; ${result.run.failures.length} page(s) failed safely` : ""}.`);
+      // Antfly persists the run synchronously while its retrieval index can take
+      // a moment to expose it. Delay the dashboard read so comparisons do not
+      // briefly fall back to a baseline after a successful repeat run.
+      await new Promise((resolve) => setTimeout(resolve, 2_000));
+      await refresh(true);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The page could not be audited");
     } finally {
