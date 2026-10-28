@@ -1,13 +1,14 @@
 "use client";
 
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import type { AnalysisDocument, MultimodalSearchHit, Overview, SearchHit } from "@/lib/types";
+import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchHit, Overview } from "@/lib/types";
 import type { VisibilityEvidenceHit, VisibilityOverview } from "@/lib/visibility/types";
 import { AuditPanel } from "./audit-panel";
 import { EvidenceSearchPanel } from "./evidence-search-panel";
 import { MultimodalPanel } from "./multimodal-panel";
 import { AuditHero, ProductArchitecture, ProductFooter, ProductHeader } from "./product-shell";
 import { VisibilityPanel } from "./visibility-panel";
+import { SiteOverviewPanel } from "./site-overview-panel";
 
 type ApiError = { ok?: false; error?: string };
 
@@ -49,7 +50,10 @@ async function loadWorkspace() {
 export function Workbench() {
   const [brandName, setBrandName] = useState("");
   const [url, setUrl] = useState("");
+  const [maxPages, setMaxPages] = useState(10);
   const [overview, setOverview] = useState<Overview>({
+    projects: [],
+    crawlRuns: [],
     sources: [],
     analyses: [],
     assets: [],
@@ -60,6 +64,7 @@ export function Workbench() {
       visualSearchEnabled: false,
       pdfExtractionEnabled: false,
     },
+    siteSummary: null,
   });
   const [visibility, setVisibility] = useState<VisibilityOverview>(emptyVisibility);
   const [selected, setSelected] = useState<AnalysisDocument>();
@@ -67,7 +72,7 @@ export function Workbench() {
   const [submitting, setSubmitting] = useState(false);
   const [message, setMessage] = useState("");
   const [searchQuery, setSearchQuery] = useState("");
-  const [searchHits, setSearchHits] = useState<SearchHit[]>([]);
+  const [answerability, setAnswerability] = useState<AnswerabilityResult>();
   const [searching, setSearching] = useState(false);
   const [visibilityQuery, setVisibilityQuery] = useState("");
   const [visibilityHits, setVisibilityHits] = useState<VisibilityEvidenceHit[]>([]);
@@ -104,9 +109,10 @@ export function Workbench() {
   }, []);
 
   const averageScore = useMemo(() => {
+    if (overview.siteSummary) return overview.siteSummary.averageScore;
     if (!overview.analyses.length) return 0;
     return Math.round(overview.analyses.reduce((sum, item) => sum + item.score, 0) / overview.analyses.length);
-  }, [overview.analyses]);
+  }, [overview.analyses, overview.siteSummary]);
 
   const selectedMultimodal = useMemo(() => {
     if (!selected) return overview.multimodalAnalyses[0];
@@ -119,14 +125,14 @@ export function Workbench() {
     setSubmitting(true);
     setMessage("");
     try {
-      const result = await jsonRequest<{ ok: true; analysis: AnalysisDocument }>("/api/ingest", {
+      const result = await jsonRequest<{ ok: true; analyses: AnalysisDocument[]; run: CrawlRunDocument }>("/api/site-audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ brandName, url }),
+        body: JSON.stringify({ brandName, url, maxPages }),
       });
-      setSelected(result.analysis);
+      setSelected(result.analyses[0]);
       await refresh();
-      setMessage("The page was indexed in Antfly and audited successfully.");
+      setMessage(`${result.run.completedPages} page(s) were indexed and audited in Antfly${result.run.failures.length ? `; ${result.run.failures.length} page(s) failed safely` : ""}.`);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The page could not be audited");
     } finally {
@@ -139,12 +145,12 @@ export function Workbench() {
     setSearching(true);
     setMessage("");
     try {
-      const result = await jsonRequest<{ ok: true; hits: SearchHit[] }>("/api/search", {
+      const result = await jsonRequest<{ ok: true; result: AnswerabilityResult }>("/api/answerability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: searchQuery }),
+        body: JSON.stringify({ question: searchQuery, projectId: overview.siteSummary?.project.id }),
       });
-      setSearchHits(result.hits);
+      setAnswerability(result.result);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Search failed");
     } finally {
@@ -191,12 +197,13 @@ export function Workbench() {
   return (
     <main>
       <ProductHeader />
-      <AuditHero brandName={brandName} url={url} submitting={submitting} onBrandNameChange={setBrandName} onUrlChange={setUrl} onSubmit={submitAudit} />
+      <AuditHero brandName={brandName} url={url} maxPages={maxPages} submitting={submitting} onBrandNameChange={setBrandName} onUrlChange={setUrl} onMaxPagesChange={setMaxPages} onSubmit={submitAudit} />
       {message && <div className="notice" role="status">{message}</div>}
+      <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} onSelect={setSelected} />
       <AuditPanel loading={loading} overview={overview} selected={selected} averageScore={averageScore} />
       <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
       <VisibilityPanel visibility={visibility} query={visibilityQuery} hits={visibilityHits} searching={visibilitySearching} onQueryChange={setVisibilityQuery} onSubmit={submitVisibilitySearch} />
-      <EvidenceSearchPanel query={searchQuery} hits={searchHits} searching={searching} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
+      <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
       <ProductArchitecture />
       <ProductFooter />
     </main>

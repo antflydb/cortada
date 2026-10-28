@@ -6,12 +6,15 @@ import { antflySearchIndexes } from "./search-indexes";
 import type {
   AnalysisDocument,
   AssetDocument,
+  CrawlRunDocument,
   MultimodalAnalysisDocument,
   MultimodalSearchHit,
   Overview,
+  ProjectDocument,
   SearchHit,
   SourceDocument,
 } from "@/lib/types";
+import { buildSiteSummary } from "@/lib/aeo/site";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
   VisibilityCitationDocument,
@@ -71,6 +74,12 @@ export async function saveVisibilityDocuments(documents: VisibilityDocument[]) {
   });
 }
 
+export async function saveSiteDocuments(project: ProjectDocument, run: CrawlRunDocument) {
+  const client = antflyClient();
+  const table = await ensureTables();
+  await client.tables.batch(table, { inserts: { [project.id]: project, [run.id]: run } });
+}
+
 function extractHits(result: unknown): UnknownRecord[] {
   if (!isRecord(result)) return [];
   const responses = Array.isArray(result.responses) ? result.responses : [];
@@ -95,11 +104,19 @@ export async function getOverview(): Promise<Overview> {
   const result = await client.tables.query(table, {
     filter_query: namespaceFilter(),
     indexes: [settings.fullTextIndex],
-    limit: 500,
+    limit: 3_000,
   } as QueryRequest);
   const documents = extractHits(result).map(
-    normalizeHit<SourceDocument | AnalysisDocument | AssetDocument | MultimodalAnalysisDocument>,
+    normalizeHit<
+      SourceDocument | AnalysisDocument | AssetDocument | MultimodalAnalysisDocument | ProjectDocument | CrawlRunDocument
+    >,
   );
+  const projects = documents
+    .filter((document): document is ProjectDocument => document.type === "project")
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const crawlRuns = documents
+    .filter((document): document is CrawlRunDocument => document.type === "crawl_run")
+    .sort((a, b) => b.completedAt.localeCompare(a.completedAt));
   const sources = documents.filter((document): document is SourceDocument => document.type === "source");
   const analyses = documents
     .filter((document): document is AnalysisDocument => document.type === "analysis")
@@ -111,6 +128,8 @@ export async function getOverview(): Promise<Overview> {
     .filter((document): document is MultimodalAnalysisDocument => document.type === "multimodal_analysis")
     .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
   return {
+    projects,
+    crawlRuns,
     sources,
     analyses,
     assets,
@@ -121,6 +140,7 @@ export async function getOverview(): Promise<Overview> {
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
     },
+    siteSummary: buildSiteSummary(projects, crawlRuns, analyses),
   };
 }
 
@@ -191,13 +211,17 @@ export async function searchVisibilityEvidence(query: string, limit = 8): Promis
   });
 }
 
-export async function searchSources(query: string, limit = 8): Promise<SearchHit[]> {
+export async function searchSources(query: string, limit = 8, projectId?: string): Promise<SearchHit[]> {
   const client = antflyClient();
   const table = await ensureTables();
   const settings = antflySettings();
   const request: QueryRequest = {
     full_text_search: { query },
-    filter_query: conjunction([namespaceFilter(), term("source", "type")]),
+    filter_query: conjunction([
+      namespaceFilter(),
+      term("source", "type"),
+      ...(projectId ? [term(projectId, "projectId")] : []),
+    ]),
     indexes: antflySearchIndexes(settings),
     limit,
     ...(settings.embeddingsEnabled && settings.embeddingIndex

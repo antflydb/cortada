@@ -90,9 +90,10 @@ After deployment:
 
 1. Confirm the site requests Basic authentication.
 2. Open `/api/health` and verify Antfly is ready.
-3. Ingest a controlled public page.
-4. Search for a phrase from that page.
-5. Confirm the namespaced source, analysis, asset, and multimodal-analysis documents appear in Antfly.
+3. Audit a controlled public site with a five-page limit.
+4. Test a customer question and confirm Antfly returns supporting pages.
+5. Open `/api/report` and verify the site-wide findings and print view.
+6. Confirm the namespaced project, crawl-run, source, analysis, asset, and multimodal-analysis documents appear in Antfly.
 
 The health endpoint exposes status, mode, embedding configuration, and latency. It never returns credentials or the Antfly endpoint.
 
@@ -101,7 +102,7 @@ The health endpoint exposes status, mode, embedding configuration, and latency. 
 Keep Basic Auth enabled while validating a new deployment. Before setting
 `CORTADA_PUBLIC_DEMO=true`:
 
-1. Add a distributed rate limit for `/api/ingest` at the Vercel firewall or another trusted edge.
+1. Add a distributed rate limit for `/api/site-audit` and `/api/ingest` at the Vercel firewall or another trusted edge.
 2. Add a separate, higher limit for `/api/search`.
 3. Configure spend alerts and review the Antfly key's least-privilege grant.
 4. Keep the built-in per-instance limits enabled as defense in depth.

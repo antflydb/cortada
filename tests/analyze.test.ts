@@ -34,6 +34,7 @@ describe("analyzePage", () => {
       hasFaqLanguage: true,
       hasStructuredData: true,
       assets: [],
+      internalLinks: [],
     };
     const result = analyzePage(page, { ...source, text, wordCount: text.split(/\s+/).length }, source.fetchedAt);
     expect(result.score).toBe(100);
@@ -53,6 +54,7 @@ describe("analyzePage", () => {
       hasFaqLanguage: false,
       hasStructuredData: false,
       assets: [],
+      internalLinks: [],
     };
     const result = analyzePage(page, source, source.fetchedAt);
     expect(result.score).toBe(0);

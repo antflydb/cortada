@@ -45,7 +45,7 @@ export function AuditPanel({ loading, overview, selected, averageScore }: AuditP
           <article className="suggestions-card">
             <div className="card-title"><span>Priority improvements</span><small>{selected?.analyzedAt ? new Date(selected.analyzedAt).toLocaleString() : "Waiting for evidence"}</small></div>
             {selected?.suggestions.length ? (
-              <ol>{selected.suggestions.slice(0, 5).map((item) => <li key={item.id}><span className={`severity ${item.severity}`}>{item.severity}</span><div><strong>{item.title}</strong><p>{item.detail}</p></div></li>)}</ol>
+              <ol>{selected.suggestions.slice(0, 5).map((item) => <li key={item.id}><span className={`severity ${item.severity}`}>{item.severity}</span><div><strong>{item.title}</strong><p>{item.detail}</p>{item.evidence && <details><summary>Evidence and recommended fix</summary><p><b>Observed:</b> {item.evidence}</p>{item.fix && <p><b>Do this:</b> {item.fix}</p>}{item.example && <code>{item.example}</code>}</details>}</div></li>)}</ol>
             ) : <div className="empty">{productConfig.name} recommendations are rules-based, so every score is inspectable and repeatable.</div>}
           </article>
         </div>

@@ -133,6 +133,11 @@ function discoverAssets($: cheerio.CheerioAPI, finalUrl: URL): DiscoveredAsset[]
 export function parsePageHtml(html: string, finalUrl: URL): ParsedPage {
   const $ = cheerio.load(html);
   const assets = discoverAssets($, finalUrl);
+  const internalLinks = [...new Set($("a[href]")
+    .map((_, element) => absoluteHttpUrl($(element).attr("href"), finalUrl))
+    .get()
+    .filter((url): url is string => Boolean(url) && new URL(url).hostname === finalUrl.hostname))]
+    .slice(0, 200);
   $("script:not([type='application/ld+json']), style, noscript, svg, iframe").remove();
   const title = cleanText($("title").first().text() || $("h1").first().text() || finalUrl.hostname);
   const description = cleanText($("meta[name='description']").attr("content") || "");
@@ -165,6 +170,7 @@ export function parsePageHtml(html: string, finalUrl: URL): ParsedPage {
     hasFaqLanguage: /\b(faq|frequently asked|who|what|when|where|why|how)\b/i.test(faqText),
     hasStructuredData: $("script[type='application/ld+json']").length > 0,
     assets,
+    internalLinks,
   };
 }
 
@@ -178,7 +184,13 @@ export async function fetchAndParsePage(input: string): Promise<ParsedPage> {
   return parsePageHtml(await readBoundedText(response), finalUrl);
 }
 
-export function toSourceDocument(page: ParsedPage, brandName: string, fetchedAt: string, namespace: string): SourceDocument {
+export function toSourceDocument(
+  page: ParsedPage,
+  brandName: string,
+  fetchedAt: string,
+  namespace: string,
+  context: { projectId?: string; crawlRunId?: string } = {},
+): SourceDocument {
   const normalizedUrl = new URL(page.url).toString();
   const contentHash = createHash("sha256").update(page.text).digest("hex");
   const id = `${namespace}:source:${createHash("sha256").update(normalizedUrl).digest("hex").slice(0, 24)}`;
@@ -196,6 +208,7 @@ export function toSourceDocument(page: ParsedPage, brandName: string, fetchedAt:
     wordCount: page.text.split(/\s+/).filter(Boolean).length,
     fetchedAt,
     contentHash,
+    ...context,
   };
 }
 
@@ -236,6 +249,8 @@ export function toAssetDocuments(
       ...(asset.height ? { height: asset.height } : {}),
       indexable: allowedHosts.has(hostname),
       discoveredAt,
+      ...(source.projectId ? { projectId: source.projectId } : {}),
+      ...(source.crawlRunId ? { crawlRunId: source.crawlRunId } : {}),
     };
   });
 }

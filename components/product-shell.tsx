@@ -4,9 +4,11 @@ import { productConfig } from "@/lib/product/config";
 type AuditHeroProps = {
   brandName: string;
   url: string;
+  maxPages: number;
   submitting: boolean;
   onBrandNameChange: (value: string) => void;
   onUrlChange: (value: string) => void;
+  onMaxPagesChange: (value: number) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
@@ -25,7 +27,7 @@ export function ProductHeader() {
   );
 }
 
-export function AuditHero({ brandName, url, submitting, onBrandNameChange, onUrlChange, onSubmit }: AuditHeroProps) {
+export function AuditHero({ brandName, url, maxPages, submitting, onBrandNameChange, onUrlChange, onMaxPagesChange, onSubmit }: AuditHeroProps) {
   return (
     <section className="hero" id="top">
       <div>
@@ -39,11 +41,12 @@ export function AuditHero({ brandName, url, submitting, onBrandNameChange, onUrl
         <p className="open-source-note">Open source · Rebrandable · Antfly Lite or Antfly Cloud</p>
       </div>
       <form className="audit-card" onSubmit={onSubmit}>
-        <div className="card-kicker">Run an Antfly-backed audit</div>
+        <div className="card-kicker">Run an Antfly-backed site audit</div>
         <label>Company name<input value={brandName} onChange={(event) => onBrandNameChange(event.target.value)} placeholder="Acme" required minLength={2} /></label>
-        <label>Website page<input value={url} onChange={(event) => onUrlChange(event.target.value)} placeholder="https://example.com" type="url" required /></label>
-        <button type="submit" disabled={submitting}>{submitting ? "Indexing and auditing…" : "Analyze page"}<span>→</span></button>
-        <small>Fetched once, evaluated deterministically, and stored in your Antfly database.</small>
+        <label>Website<input value={url} onChange={(event) => onUrlChange(event.target.value)} placeholder="https://example.com" type="url" required /></label>
+        <label>Maximum pages<select value={maxPages} onChange={(event) => onMaxPagesChange(Number(event.target.value))}><option value={5}>5 pages</option><option value={10}>10 pages</option><option value={25}>25 pages</option></select></label>
+        <button type="submit" disabled={submitting}>{submitting ? "Discovering and auditing…" : "Audit site"}<span>→</span></button>
+        <small>Discovers the sitemap and same-domain pages, respects robots rules, and stores every successful audit in Antfly.</small>
       </form>
     </section>
   );

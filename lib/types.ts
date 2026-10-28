@@ -5,6 +5,41 @@ export type Suggestion = {
   severity: SuggestionSeverity;
   title: string;
   detail: string;
+  evidence?: string;
+  fix?: string;
+  example?: string;
+};
+
+export type ProjectDocument = {
+  id: string;
+  type: "project";
+  workspaceId: string;
+  brandName: string;
+  rootUrl: string;
+  hostname: string;
+  createdAt: string;
+  updatedAt: string;
+};
+
+export type CrawlFailure = {
+  url: string;
+  error: string;
+};
+
+export type CrawlRunDocument = {
+  id: string;
+  type: "crawl_run";
+  workspaceId: string;
+  projectId: string;
+  brandName: string;
+  rootUrl: string;
+  status: "completed" | "partial" | "failed";
+  requestedPages: number;
+  completedPages: number;
+  averageScore: number | null;
+  failures: CrawlFailure[];
+  startedAt: string;
+  completedAt: string;
 };
 
 export type PageSignals = {
@@ -34,6 +69,8 @@ export type SourceDocument = {
   wordCount: number;
   fetchedAt: string;
   contentHash: string;
+  projectId?: string;
+  crawlRunId?: string;
 };
 
 export type AnalysisDocument = {
@@ -54,6 +91,8 @@ export type AnalysisDocument = {
   signals: PageSignals;
   suggestions: Suggestion[];
   analyzedAt: string;
+  projectId?: string;
+  crawlRunId?: string;
 };
 
 export type AssetKind = "image" | "pdf";
@@ -89,6 +128,8 @@ export type AssetDocument = {
   height?: number;
   indexable: boolean;
   discoveredAt: string;
+  projectId?: string;
+  crawlRunId?: string;
 };
 
 export type MultimodalFinding = {
@@ -116,6 +157,8 @@ export type MultimodalAnalysisDocument = {
   pdfLabelCoverage: number | null;
   findings: MultimodalFinding[];
   analyzedAt: string;
+  projectId?: string;
+  crawlRunId?: string;
 };
 
 export type MultimodalCapabilities = {
@@ -126,17 +169,55 @@ export type MultimodalCapabilities = {
 };
 
 export type Overview = {
+  projects: ProjectDocument[];
+  crawlRuns: CrawlRunDocument[];
   sources: SourceDocument[];
   analyses: AnalysisDocument[];
   assets: AssetDocument[];
   multimodalAnalyses: MultimodalAnalysisDocument[];
   multimodalCapabilities: MultimodalCapabilities;
+  siteSummary: SiteSummary | null;
+};
+
+export type SiteFinding = {
+  id: string;
+  severity: SuggestionSeverity;
+  title: string;
+  detail: string;
+  affectedPages: number;
+  totalPages: number;
+  urls: string[];
+};
+
+export type SiteComparison = {
+  previousRunId: string;
+  scoreDelta: number;
+  pageDelta: number;
+  newFindings: string[];
+  resolvedFindings: string[];
+};
+
+export type SiteSummary = {
+  project: ProjectDocument;
+  run: CrawlRunDocument;
+  pageCount: number;
+  averageScore: number;
+  findings: SiteFinding[];
+  comparison: SiteComparison | null;
 };
 
 export type SearchHit = {
   id: string;
   score: number;
   source: SourceDocument;
+};
+
+export type AnswerabilityResult = {
+  question: string;
+  status: "supported" | "partial" | "not-found";
+  evidenceCount: number;
+  evidence: SearchHit[];
+  testedAt: string;
 };
 
 export type MultimodalSearchHit = {

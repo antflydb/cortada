@@ -64,8 +64,8 @@ Open `http://localhost:3000`. Rebuild the image after changing any `NEXT_PUBLIC_
 1. Put an HTTPS reverse proxy or managed ingress in front of port 3000.
 2. Set `CORTADA_BASIC_AUTH_USER` and `CORTADA_BASIC_AUTH_PASSWORD`, or deliberately configure public-demo protections.
 3. Keep the runtime Antfly token limited to the selected Cortada table.
-4. Add a distributed limit for `/api/ingest`, `/api/search`, and `/api/multimodal/search` before enabling `CORTADA_PUBLIC_DEMO=true`.
+4. Add a distributed limit for `/api/site-audit`, `/api/ingest`, `/api/answerability`, `/api/search`, and `/api/multimodal/search` before enabling `CORTADA_PUBLIC_DEMO=true`.
 5. Configure spend and traffic alerts.
-6. Verify `/api/health`, ingest one controlled page, and run one search.
+6. Verify `/api/health`, run one controlled site audit, test one customer question, and open `/api/report`.
 
 The in-process limiter is defense in depth and is not a distributed serverless or multi-container rate limiter.

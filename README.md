@@ -8,8 +8,12 @@ Run it as Cortada or rebrand it for your own company. The same application works
 
 ## V1 capabilities
 
-- Public-page ingestion with redirect-aware SSRF protection and a 2 MB response limit
+- Bounded same-host site audits using sitemaps, internal links, conservative robots rules, redirect-aware SSRF protection and a 2 MB per-page limit
 - Deterministic, versioned 100-point AEO audit profiles
+- Site-wide issue aggregation, immutable crawl runs, historical score comparisons and partial-failure reporting
+- Antfly answerability tests that retrieve supporting site evidence without model-generated grading
+- Actionable page recommendations with observed evidence, implementation guidance and copyable examples
+- White-label HTML/print, Markdown and JSON report exports
 - Antfly-native visibility campaigns with immutable prompts, observations, citations and evidence retrieval
 - Namespaced source and analysis documents in an Antfly table
 - Full-text retrieval, with optional Antfly-native embeddings and hybrid RRF search
@@ -73,7 +77,7 @@ Antfly Lite locally or Antfly Cloud Lite in production
    npm run dev
    ```
 
-6. Open `http://localhost:3000` and analyze a public website page.
+6. Open `http://localhost:3000` and audit a public website. Cortada audits up to 10 pages by default; the UI can request 5, 10, or 25.
 
 The product uses the `default` table created by Antfly Lite. Set `ANTFLY_ENABLE_EMBEDDINGS=true` only after configuring a compatible embedding index on the target runtime. `npm run setup:antfly -- --create` can create the published embedding index when run with a temporary provisioning key.
 
@@ -119,9 +123,11 @@ The built-in request limiter is defense in depth for a single application instan
 
 This includes a Vercel deployment reference, not yet a Vercel Marketplace integration. See [Vercel deployment](docs/VERCEL.md).
 
-## Roadmap
+## Provider roadmap
 
 V1 deliberately proves the Antfly data and retrieval architecture before adding answer-engine providers. The visibility document model and evidence dashboard are available now; live collectors remain optional adapters. See [Visibility campaigns](docs/VISIBILITY_CAMPAIGNS.md) and [Post-V1 providers](docs/POST_V1_PROVIDERS.md).
+
+See [Site audits and reports](docs/SITE_AUDITS.md) for the v1 site workflow and its deliberately bounded crawler contract.
 
 ## Development checks
 

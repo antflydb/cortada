@@ -1,25 +1,26 @@
 import type { FormEventHandler } from "react";
-import type { SearchHit } from "@/lib/types";
+import type { AnswerabilityResult } from "@/lib/types";
 
 type EvidenceSearchPanelProps = {
   query: string;
-  hits: SearchHit[];
+  result?: AnswerabilityResult;
   searching: boolean;
   onQueryChange: (value: string) => void;
   onSubmit: FormEventHandler<HTMLFormElement>;
 };
 
-export function EvidenceSearchPanel({ query, hits, searching, onQueryChange, onSubmit }: EvidenceSearchPanelProps) {
+export function EvidenceSearchPanel({ query, result, searching, onQueryChange, onSubmit }: EvidenceSearchPanelProps) {
   return (
     <section className="search-section">
-      <div className="section-heading"><div><p className="eyebrow">Antfly retrieval</p><h2>Search the evidence you indexed.</h2></div></div>
+      <div className="section-heading"><div><p className="eyebrow">Antfly answerability test</p><h2>Can your evidence answer a customer’s question?</h2></div>{result && <span className={`answerability-status ${result.status}`}>{result.status.replace("-", " ")}</span>}</div>
       <form className="search-form" onSubmit={onSubmit}>
-        <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="What does the company say about…" minLength={2} required />
-        <button disabled={searching}>{searching ? "Searching…" : "Search Antfly"}</button>
+        <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="How does this company solve…?" minLength={5} required />
+        <button disabled={searching}>{searching ? "Testing…" : "Test question"}</button>
       </form>
+      <p className="answerability-copy">Cortada asks Antfly to retrieve the strongest site evidence. This measures retrievability—it does not use a model to invent or grade an answer.</p>
       <div className="search-results">
-        {hits.map((hit) => <article key={hit.id}><span>{hit.source.hostname}</span><h3>{hit.source.title}</h3><p>{hit.source.description || hit.source.text.slice(0, 220)}</p><a href={hit.source.url} target="_blank" rel="noreferrer">View source ↗</a></article>)}
-        {!hits.length && <p className="search-empty">Indexed page content will appear here when it matches your query.</p>}
+        {result?.evidence.map((hit) => <article key={hit.id}><span>{hit.source.hostname}</span><h3>{hit.source.title}</h3><p>{hit.source.description || hit.source.text.slice(0, 220)}</p><a href={hit.source.url} target="_blank" rel="noreferrer">View supporting evidence ↗</a></article>)}
+        {!result?.evidence.length && <p className="search-empty">Ask an important customer question to inspect the evidence Antfly can retrieve.</p>}
       </div>
     </section>
   );

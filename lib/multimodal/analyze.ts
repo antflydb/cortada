@@ -106,5 +106,7 @@ export function analyzeMultimodalEvidence(
     pdfLabelCoverage,
     findings,
     analyzedAt,
+    ...(source.projectId ? { projectId: source.projectId } : {}),
+    ...(source.crawlRunId ? { crawlRunId: source.crawlRunId } : {}),
   };
 }
