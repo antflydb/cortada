@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { buildSiteSummary } from "@/lib/aeo/site";
-import { parseRobotsText, parseSitemapXml } from "@/lib/web/discover-site";
+import { parseRobotsText, parseSitemapXml, robotsRuleMatches } from "@/lib/web/discover-site";
 import type { AnalysisDocument, CrawlRunDocument, ProjectDocument } from "@/lib/types";
 
 const project: ProjectDocument = {
@@ -74,6 +74,13 @@ describe("site discovery parsing", () => {
   it("extracts sitemap and conservative robots directives", () => {
     expect(parseRobotsText("User-agent: *\nDisallow: /private\nSitemap: https://example.com/sitemap.xml"))
       .toEqual({ sitemapUrls: ["https://example.com/sitemap.xml"], disallowedPaths: ["/private"] });
+  });
+
+  it("honors robots wildcards without treating their prefix as a global block", () => {
+    expect(robotsRuleMatches("/WAI/", "/*/wp-admin/")).toBe(false);
+    expect(robotsRuleMatches("/blog/acme/wp-admin/", "/*/wp-admin/")).toBe(true);
+    expect(robotsRuleMatches("/private", "/private$")).toBe(true);
+    expect(robotsRuleMatches("/private/page", "/private$")).toBe(false);
   });
 
   it("distinguishes sitemap indexes from page maps", () => {

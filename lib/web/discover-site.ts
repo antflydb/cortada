@@ -93,9 +93,18 @@ function normalizedPageUrl(value: string, hostname: string): string | undefined 
   }
 }
 
+export function robotsRuleMatches(path: string, rule: string): boolean {
+  const anchored = rule.endsWith("$");
+  const body = anchored ? rule.slice(0, -1) : rule;
+  const pattern = body.split("*")
+    .map((part) => part.replace(/[.+?^${}()|[\]\\]/g, "\\$&"))
+    .join(".*");
+  return new RegExp(`^${pattern}${anchored ? "$" : ""}`).test(path);
+}
+
 function allowedByRobots(value: string, disallowedPaths: string[]): boolean {
-  const path = new URL(value).pathname;
-  return !disallowedPaths.some((rule) => rule === "/" || (rule && path.startsWith(rule.replace(/\*.*$/, ""))));
+  const url = new URL(value);
+  return !disallowedPaths.some((rule) => rule && robotsRuleMatches(`${url.pathname}${url.search}`, rule));
 }
 
 export async function discoverSite(input: string, limit: number): Promise<SiteDiscovery> {
@@ -140,5 +149,7 @@ export async function discoverSite(input: string, limit: number): Promise<SiteDi
     .slice(0, limit);
 
   if (!urls.includes(rootPage.url) && allowedByRobots(rootPage.url, robots.disallowedPaths)) urls.unshift(rootPage.url);
-  return { rootPage, urls: urls.slice(0, limit), sitemapUrls, disallowedPaths: robots.disallowedPaths };
+  const bounded = urls.slice(0, limit);
+  if (!bounded.length) throw new Error("robots.txt does not allow Cortada to audit this site");
+  return { rootPage, urls: bounded, sitemapUrls, disallowedPaths: robots.disallowedPaths };
 }

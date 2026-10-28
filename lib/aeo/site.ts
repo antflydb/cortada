@@ -49,7 +49,7 @@ export function buildSiteSummary(
   const currentAnalyses = analyses.filter((analysis) => analysis.crawlRunId === run.id);
   const findings = findingsFor(currentAnalyses);
   const previousRun = crawlRuns
-    .filter((candidate) => candidate.projectId === run.projectId && candidate.id !== run.id)
+    .filter((candidate) => candidate.projectId === run.projectId && candidate.id !== run.id && candidate.completedPages > 0)
     .sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0];
   let comparison: SiteSummary["comparison"] = null;
   if (previousRun) {
