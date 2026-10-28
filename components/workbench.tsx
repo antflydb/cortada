@@ -3,6 +3,7 @@
 import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
 import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchHit, Overview } from "@/lib/types";
 import type { VisibilityEvidenceHit, VisibilityOverview } from "@/lib/visibility/types";
+import { productConfig } from "@/lib/product/config";
 import { AuditPanel } from "./audit-panel";
 import { EvidenceSearchPanel } from "./evidence-search-panel";
 import { MultimodalPanel } from "./multimodal-panel";
@@ -208,7 +209,7 @@ export function Workbench() {
       <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
       <VisibilityPanel visibility={visibility} query={visibilityQuery} hits={visibilityHits} searching={visibilitySearching} onQueryChange={setVisibilityQuery} onSubmit={submitVisibilitySearch} />
       <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
-      <ProductArchitecture />
+      {productConfig.showArchitecture && <ProductArchitecture />}
       <ProductFooter />
     </main>
   );

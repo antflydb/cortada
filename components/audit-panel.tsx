@@ -34,8 +34,8 @@ export function AuditPanel({ loading, overview, selected, averageScore }: AuditP
         <div className="result-grid">
           <article className="score-card">
             <span>AEO readiness</span>
-            <div className="score-ring" style={{ "--score": `${selected?.score || 0}%` } as React.CSSProperties}>
-              <strong>{selected?.score ?? "—"}</strong><small>/100</small>
+            <div className="score-ring" style={{ "--score": `${selected?.score ?? 0}%` } as React.CSSProperties} aria-label={selected ? `AEO readiness score ${selected.score} out of 100` : "No AEO readiness score yet"}>
+              <div className="score-value"><strong>{selected?.score ?? "—"}</strong><small>out of 100</small></div>
             </div>
             <h3>{gradeLabel(selected)}</h3>
             <p>{selected ? `${selected.suggestions.length} focused improvements found.` : "Analyze a public page to establish a baseline."}</p>

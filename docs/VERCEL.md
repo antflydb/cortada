@@ -24,7 +24,7 @@ CORTADA_PUBLIC_DEMO=false
 CORTADA_AUDIT_PROFILE=standard-v1
 ```
 
-Set the `NEXT_PUBLIC_APP_*` and `NEXT_PUBLIC_BRAND_*` variables from [the white-label guide](WHITE_LABEL.md) before the deployment build when publishing a differently branded product.
+Set the `NEXT_PUBLIC_APP_*`, `NEXT_PUBLIC_BRAND_*`, `NEXT_PUBLIC_THEME_*` and `NEXT_PUBLIC_SHOW_*` variables from [the white-label guide](WHITE_LABEL.md) before the deployment build when publishing a differently branded product.
 
 Optional Antfly-native embeddings:
 

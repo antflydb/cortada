@@ -1,5 +1,6 @@
 import type { FormEventHandler } from "react";
 import type { AnswerabilityResult } from "@/lib/types";
+import { productConfig } from "@/lib/product/config";
 
 type EvidenceSearchPanelProps = {
   query: string;
@@ -17,7 +18,7 @@ export function EvidenceSearchPanel({ query, result, searching, onQueryChange, o
         <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="How does this company solve…?" minLength={5} required />
         <button disabled={searching}>{searching ? "Testing…" : "Test question"}</button>
       </form>
-      <p className="answerability-copy">Cortada asks Antfly to retrieve the strongest site evidence. This measures retrievability—it does not use a model to invent or grade an answer.</p>
+      <p className="answerability-copy">{productConfig.name} asks Antfly to retrieve the strongest site evidence. This measures retrievability—it does not use a model to invent or grade an answer.</p>
       <div className="search-results">
         {result?.evidence.map((hit) => <article key={hit.id}><span>{hit.source.hostname}</span><h3>{hit.source.title}</h3><p>{hit.source.description || hit.source.text.slice(0, 220)}</p><a href={hit.source.url} target="_blank" rel="noreferrer">View supporting evidence ↗</a></article>)}
         {!result?.evidence.length && <p className="search-empty">Ask an important customer question to inspect the evidence Antfly can retrieve.</p>}

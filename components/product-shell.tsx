@@ -16,13 +16,13 @@ export function ProductHeader() {
   return (
     <header className="site-header">
       <a className="brand" href="#top" aria-label={`${productConfig.name} home`}>
-        <span className="brand-mark">{productConfig.mark}</span>
+        <span className={`brand-mark${productConfig.logoUrl ? " has-logo" : ""}`} style={productConfig.logoUrl ? { backgroundImage: `url(${productConfig.logoUrl})` } : undefined}>{productConfig.logoUrl ? null : productConfig.mark}</span>
         <span>{productConfig.name}</span>
       </a>
-      <nav className="header-links" aria-label="Project links">
-        <a href={productConfig.repositoryUrl} target="_blank" rel="noreferrer">GitHub ↗</a>
-        <div className="powered"><span className="status-dot" /> Powered by Antfly</div>
-      </nav>
+      {(productConfig.showProjectLinks || productConfig.showAntflyAttribution) && <nav className="header-links" aria-label="Product links">
+        {productConfig.showProjectLinks && <a href={productConfig.repositoryUrl} target="_blank" rel="noreferrer">GitHub ↗</a>}
+        {productConfig.showAntflyAttribution && <div className="powered"><span className="status-dot" /> Powered by Antfly</div>}
+      </nav>}
     </header>
   );
 }
@@ -34,11 +34,11 @@ export function AuditHero({ brandName, url, maxPages, submitting, onBrandNameCha
         <p className="eyebrow">{productConfig.eyebrow}</p>
         <h1>{productConfig.headline}</h1>
         <p className="hero-copy">{productConfig.description}</p>
-        <div className="hero-actions">
+        {productConfig.showProjectLinks && <div className="hero-actions">
           <a className="primary-link" href={productConfig.vercelDeployUrl} target="_blank" rel="noreferrer">Deploy on Vercel ↗</a>
           <a href={`${productConfig.repositoryUrl}/blob/main/docs/SELF_HOSTING.md`} target="_blank" rel="noreferrer">Self-hosting guide ↗</a>
-        </div>
-        <p className="open-source-note">Open source · Rebrandable · Antfly Lite or Antfly Cloud</p>
+        </div>}
+        {productConfig.showProjectLinks && <p className="open-source-note">{productConfig.deployNote}</p>}
       </div>
       <form className="audit-card" onSubmit={onSubmit}>
         <div className="card-kicker">Run an Antfly-backed site audit</div>
@@ -66,8 +66,8 @@ export function ProductArchitecture() {
 export function ProductFooter() {
   return (
     <footer>
-      <span>{productConfig.name} Community · {productConfig.licenseName}</span>
-      <span>Open-source AEO/GEO powered by Antfly</span>
+      <span>{productConfig.footerText}</span>
+      {productConfig.showAntflyAttribution && <span>AEO/GEO powered by Antfly</span>}
     </footer>
   );
 }

@@ -106,14 +106,16 @@ The product uses the `default` table created by Antfly Lite. Set `ANTFLY_ENABLE_
 | `CORTADA_SEARCH_RATE_LIMIT` | No | Per-instance search budget; defaults to 30 per minute |
 | `CORTADA_AUDIT_PROFILE` | No | Selects `standard-v1` or `authority-v1` |
 | `CORTADA_FETCH_USER_AGENT` | No | Identifies your deployment to websites it audits |
-| `NEXT_PUBLIC_APP_*` | No | Public white-label name and content settings |
-| `NEXT_PUBLIC_BRAND_*` | No | Public six-digit hex theme colors |
+| `NEXT_PUBLIC_APP_*` | No | Public white-label name, logo and content settings |
+| `NEXT_PUBLIC_BRAND_*` | No | Public six-digit hex palette for the complete UI and reports |
+| `NEXT_PUBLIC_THEME_*` | No | Typography (`sans` or `editorial`) and corner style (`square`, `soft` or `rounded`) |
+| `NEXT_PUBLIC_SHOW_*` | No | Shows or hides template links, architecture promotion and Antfly attribution |
 
 Only branding belongs in `NEXT_PUBLIC_` variables. Never use that prefix for Antfly credentials.
 
 ## White-label and self-host
 
-Branding, product copy, theme colors, crawler identity and the active audit profile are configuration surfaces. See [White-labeling](docs/WHITE_LABEL.md) for the supported contract and [Self-hosting](docs/SELF_HOSTING.md) for Node and Docker deployment.
+Branding, product copy, the complete UI palette, logo, typography, corner style, template promotion, crawler identity and the active audit profile are configuration surfaces. See [White-labeling](docs/WHITE_LABEL.md) for the supported contract and [Self-hosting](docs/SELF_HOSTING.md) for Node and Docker deployment.
 
 ## Vercel
 

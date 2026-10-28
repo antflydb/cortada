@@ -150,6 +150,6 @@ export async function discoverSite(input: string, limit: number): Promise<SiteDi
 
   if (!urls.includes(rootPage.url) && allowedByRobots(rootPage.url, robots.disallowedPaths)) urls.unshift(rootPage.url);
   const bounded = urls.slice(0, limit);
-  if (!bounded.length) throw new Error("robots.txt does not allow Cortada to audit this site");
+  if (!bounded.length) throw new Error("robots.txt does not allow this crawler to audit the site");
   return { rootPage, urls: bounded, sitemapUrls, disallowedPaths: robots.disallowedPaths };
 }

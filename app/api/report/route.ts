@@ -35,7 +35,7 @@ function markdownReport(overview: Overview): string {
   if (summary?.comparison) {
     lines.push("## Change since the previous run", "", `- Score change: ${summary.comparison.scoreDelta >= 0 ? "+" : ""}${summary.comparison.scoreDelta}`, `- Resolved finding types: ${summary.comparison.resolvedFindings.length}`, `- New finding types: ${summary.comparison.newFindings.length}`, "");
   }
-  lines.push("---", `Powered by Antfly · ${productConfig.licenseName}`);
+  lines.push("---", productConfig.showAntflyAttribution ? `${productConfig.footerText} · Powered by Antfly` : productConfig.footerText);
   return lines.join("\n");
 }
 
@@ -44,22 +44,26 @@ function htmlReport(overview: Overview): string {
   const latest = overview.analyses[0];
   const name = summary?.project.brandName || latest?.brandName || productConfig.name;
   const findings = summary?.findings || latest?.suggestions.map((suggestion) => ({ ...suggestion, affectedPages: 1, totalPages: 1, urls: [latest.url] })) || [];
+  const displayFont = productConfig.appearance.font === "editorial" ? "Georgia,serif" : "Arial,sans-serif";
+  const radius = productConfig.appearance.corners === "square" ? "0" : productConfig.appearance.corners === "rounded" ? "18px" : "10px";
+  const attribution = productConfig.showAntflyAttribution ? " · Powered by Antfly" : "";
   return `<!doctype html><html><head><meta charset="utf-8"><title>${escapeHtml(name)} AEO audit</title><style>
-    :root{--ink:#15201d;--green:${escapeHtml(productConfig.colors.primary)};--paper:#f5f2e9}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Arial,sans-serif}.report{max-width:920px;margin:auto;padding:64px 40px}h1,h2,h3{font-family:Georgia,serif}h1{font-size:52px;margin:.15em 0}.eyebrow{color:var(--green);font-weight:800;letter-spacing:.14em;text-transform:uppercase}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:#d8d6ca;margin:36px 0}.summary div,.finding{background:#fffdf7;padding:24px}.summary strong{display:block;font:38px Georgia,serif}.finding{margin:14px 0;border-left:5px solid var(--green)}.finding span{font-size:11px;font-weight:800;text-transform:uppercase}.finding ul{color:#5f6c68}.print{float:right;padding:10px 14px;border:0;background:var(--green);color:white;font-weight:700}@media print{.print{display:none}.report{padding:20px}body{background:white}}</style></head><body><main class="report"><button class="print" onclick="window.print()">Print / Save PDF</button><p class="eyebrow">${escapeHtml(productConfig.name)} evidence report</p><h1>${escapeHtml(name)}</h1><p>${summary ? escapeHtml(summary.project.rootUrl) : latest ? escapeHtml(latest.url) : "No audit yet"}</p><section class="summary"><div><span>Pages audited</span><strong>${summary?.pageCount ?? (latest ? 1 : 0)}</strong></div><div><span>Readiness</span><strong>${summary?.averageScore ?? latest?.score ?? 0}</strong></div><div><span>Findings</span><strong>${findings.length}</strong></div></section><h2>Priority findings</h2>${findings.map((finding) => `<article class="finding"><span>${escapeHtml(finding.severity)} · ${finding.affectedPages}/${finding.totalPages} pages</span><h3>${escapeHtml(finding.title)}</h3><p>${escapeHtml(finding.detail)}</p><ul>${finding.urls.slice(0, 5).map((url) => `<li>${escapeHtml(url)}</li>`).join("")}</ul></article>`).join("")}<footer><p>Generated ${escapeHtml(new Date().toISOString())} · Powered by Antfly</p></footer></main></body></html>`;
+    :root{--ink:${escapeHtml(productConfig.colors.text)};--primary:${escapeHtml(productConfig.colors.primary)};--paper:${escapeHtml(productConfig.colors.background)};--surface:${escapeHtml(productConfig.colors.surface)};--muted:${escapeHtml(productConfig.colors.muted)};--line:${escapeHtml(productConfig.colors.border)};--radius:${radius};--display:${displayFont}}*{box-sizing:border-box}body{margin:0;background:var(--paper);color:var(--ink);font:15px/1.55 Arial,sans-serif}.report{max-width:920px;margin:auto;padding:64px 40px}h1,h2,h3{font-family:var(--display)}h1{font-size:48px;line-height:1.05;letter-spacing:-.035em;margin:.15em 0}.eyebrow{color:var(--primary);font-size:11px;font-weight:800;letter-spacing:.14em;text-transform:uppercase}.summary{display:grid;grid-template-columns:repeat(3,1fr);gap:1px;background:var(--line);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden;margin:36px 0}.summary div,.finding{background:var(--surface);padding:24px}.summary strong{display:block;font:700 38px/1 var(--display)}.finding{margin:14px 0;border:1px solid var(--line);border-left:5px solid var(--primary);border-radius:var(--radius)}.finding span{font-size:11px;font-weight:800;text-transform:uppercase}.finding ul{color:var(--muted)}.print{float:right;padding:10px 14px;border:0;border-radius:var(--radius);background:var(--primary);color:white;font-weight:700}@media(max-width:640px){.report{padding:32px 20px}.summary{grid-template-columns:1fr}h1{font-size:38px}}@media print{.print{display:none}.report{padding:20px}body{background:white}}</style></head><body><main class="report"><button class="print" onclick="window.print()">Print / Save PDF</button><p class="eyebrow">${escapeHtml(productConfig.name)} evidence report</p><h1>${escapeHtml(name)}</h1><p>${summary ? escapeHtml(summary.project.rootUrl) : latest ? escapeHtml(latest.url) : "No audit yet"}</p><section class="summary"><div><span>Pages audited</span><strong>${summary?.pageCount ?? (latest ? 1 : 0)}</strong></div><div><span>Readiness</span><strong>${summary?.averageScore ?? latest?.score ?? 0}</strong></div><div><span>Findings</span><strong>${findings.length}</strong></div></section><h2>Priority findings</h2>${findings.map((finding) => `<article class="finding"><span>${escapeHtml(finding.severity)} · ${finding.affectedPages}/${finding.totalPages} pages</span><h3>${escapeHtml(finding.title)}</h3><p>${escapeHtml(finding.detail)}</p><ul>${finding.urls.slice(0, 5).map((url) => `<li>${escapeHtml(url)}</li>`).join("")}</ul></article>`).join("")}<footer><p>Generated ${escapeHtml(new Date().toISOString())} · ${escapeHtml(productConfig.footerText)}${attribution}</p></footer></main></body></html>`;
 }
 
 export async function GET(request: Request) {
   try {
     const overview = await getOverview();
     const format = new URL(request.url).searchParams.get("format") || "html";
+    const filePrefix = productConfig.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "aeo";
     if (format === "json") {
       return new Response(JSON.stringify({ generatedAt: new Date().toISOString(), ...overview }, null, 2), {
-        headers: { "Content-Type": "application/json", "Content-Disposition": 'attachment; filename="cortada-report.json"' },
+        headers: { "Content-Type": "application/json", "Content-Disposition": `attachment; filename="${filePrefix}-report.json"` },
       });
     }
     if (format === "markdown") {
       return new Response(markdownReport(overview), {
-        headers: { "Content-Type": "text/markdown; charset=utf-8", "Content-Disposition": 'attachment; filename="cortada-report.md"' },
+        headers: { "Content-Type": "text/markdown; charset=utf-8", "Content-Disposition": `attachment; filename="${filePrefix}-report.md"` },
       });
     }
     return new Response(htmlReport(overview), { headers: { "Content-Type": "text/html; charset=utf-8" } });
