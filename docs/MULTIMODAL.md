@@ -49,3 +49,5 @@ ANTFLY_SETUP_API_KEY=temporary-provisioning-key npm run setup:antfly -- --create
 The setup command creates only missing configured indexes. It never drops tables or indexes. It fails with a capability/model error when the selected Lite or Cloud Lite runtime cannot execute a requested pipeline; leave that feature flag off in that case.
 
 After enabling a feature, rebuild or redeploy, audit a controlled page containing a useful image and PDF, and search the multimodal panel by meaning. `/api/health` reports whether visual and PDF retrieval are enabled without exposing endpoint or credential details.
+
+PDF artifact retrieval uses the namespaced parent asset key as `filter_prefix`. Derived page and chunk artifacts inherit that prefix even though they do not duplicate arbitrary parent fields such as `workspaceId`; a field-only namespace filter would exclude the artifacts it is intended to protect.

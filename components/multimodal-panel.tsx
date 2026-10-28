@@ -48,7 +48,7 @@ export function MultimodalPanel({
 
       <div className="multimodal-metrics">
         <article><span>Images found</span><strong>{analysis?.imageCount ?? 0}</strong><em>{analysis?.indexableImageCount ?? 0} approved for visual indexing</em></article>
-        <article><span>PDFs found</span><strong>{analysis?.pdfCount ?? 0}</strong><em>{capabilities.pdfExtractionEnabled ? "durable extraction active" : "extraction feature-gated"}</em></article>
+        <article><span>PDFs found</span><strong>{analysis?.pdfCount ?? 0}</strong><em>{capabilities.pdfExtractionEnabled ? "durable extraction configured" : "extraction feature-gated"}</em></article>
         <article><span>Image alt coverage</span><strong>{percentage(analysis?.imageAltCoverage)}</strong><em>deterministic HTML signal</em></article>
         <article><span>Multimodal readiness</span><strong>{analysis?.score ?? "—"}</strong><em>{analysis?.grade === "no-assets" ? "no assets on the audited page" : "separate from the AEO score"}</em></article>
       </div>

@@ -233,7 +233,10 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
   if (settings.pdfExtractionEnabled && settings.pdfTextIndex) {
     searches.push(client.tables.query(table, {
       full_text_search: { query },
-      filter_query: namespaceFilter(),
+      // Derived PDF chunks retain the parent asset key prefix, but do not copy
+      // arbitrary source fields such as workspaceId into every artifact record.
+      // Prefix isolation therefore covers both the parent and its descendants.
+      filter_prefix: `${settings.namespace}:asset:`,
       indexes: [settings.pdfTextIndex],
       limit,
     } as QueryRequest));
