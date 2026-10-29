@@ -137,6 +137,8 @@ See [Site audits and reports](docs/SITE_AUDITS.md) for the v1 site workflow and 
 npm run check
 ```
 
+The initial workspace request uses one Antfly key-prefix read for audit, multimodal and visibility data. Table and index discovery stay in `npm run setup:antfly` rather than the serverless read path. `/api/overview` exposes its backend duration through the standard `Server-Timing` response header for deployment diagnostics.
+
 ## License
 
 Apache-2.0. This intentionally permits private downstream forks and commercial white-label deployments, subject to the license terms. The license covers code, not trademark rights in project or company names and logos.

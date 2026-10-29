@@ -21,6 +21,7 @@ import type {
   VisibilityDocument,
   VisibilityEvidenceHit,
   VisibilityObservationDocument,
+  VisibilityOverview,
 } from "@/lib/visibility/types";
 
 type UnknownRecord = Record<string, unknown>;
@@ -93,24 +94,33 @@ function normalizeHit<T>(hit: UnknownRecord): T {
   return { ...candidate, id: String(candidate.id || hit._id || hit._key) } as T;
 }
 
-function namespaceFilter() {
-  return term(antflySettings().namespace, "workspaceId");
+function namespacePrefix(): string {
+  return `${antflySettings().namespace}:`;
 }
 
-export async function getOverview(): Promise<Overview> {
+type WorkspaceDocument =
+  | SourceDocument
+  | AnalysisDocument
+  | AssetDocument
+  | MultimodalAnalysisDocument
+  | ProjectDocument
+  | CrawlRunDocument
+  | VisibilityDocument;
+
+async function loadWorkspaceDocuments(limit = 3_000): Promise<WorkspaceDocument[]> {
   const client = antflyClient();
-  const table = await ensureTables();
   const settings = antflySettings();
-  const result = await client.tables.query(table, {
-    filter_query: namespaceFilter(),
-    indexes: [settings.fullTextIndex],
-    limit: 3_000,
+  const result = await client.tables.query(settings.table, {
+    // Every Cortada-owned key begins with the configured namespace. Antfly
+    // applies this prefix before scoring, avoiding a broad indexed field scan.
+    filter_prefix: `${settings.namespace}:`,
+    limit,
   } as QueryRequest);
-  const documents = extractHits(result).map(
-    normalizeHit<
-      SourceDocument | AnalysisDocument | AssetDocument | MultimodalAnalysisDocument | ProjectDocument | CrawlRunDocument
-    >,
-  );
+  return extractHits(result).map(normalizeHit<WorkspaceDocument>);
+}
+
+function buildOverview(documents: WorkspaceDocument[]): Overview {
+  const settings = antflySettings();
   const projects = documents
     .filter((document): document is ProjectDocument => document.type === "project")
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
@@ -144,35 +154,37 @@ export async function getOverview(): Promise<Overview> {
   };
 }
 
+function visibilityDocuments(documents: WorkspaceDocument[]): VisibilityDocument[] {
+  return documents.filter((document): document is VisibilityDocument =>
+    typeof document.type === "string" && document.type.startsWith("visibility_"),
+  );
+}
+
+export async function getWorkspaceOverview(): Promise<Overview & { visibility: VisibilityOverview }> {
+  const documents = await loadWorkspaceDocuments();
+  return {
+    ...buildOverview(documents),
+    visibility: buildVisibilityOverview(visibilityDocuments(documents)),
+  };
+}
+
+export async function getOverview(): Promise<Overview> {
+  return buildOverview(await loadWorkspaceDocuments());
+}
+
 export async function getVisibilityOverview() {
-  const client = antflyClient();
-  const table = await ensureTables();
-  const settings = antflySettings();
-  const result = await client.tables.query(table, {
-    filter_query: namespaceFilter(),
-    indexes: [settings.fullTextIndex],
-    limit: 2_000,
-  } as QueryRequest);
-  const documents = extractHits(result)
-    .map(normalizeHit<UnknownRecord>)
-    .filter((document): document is UnknownRecord & VisibilityDocument =>
-      typeof document.type === "string" && document.type.startsWith("visibility_"),
-    );
-  return buildVisibilityOverview(documents);
+  return buildVisibilityOverview(visibilityDocuments(await loadWorkspaceDocuments(2_000)));
 }
 
 export async function searchVisibilityEvidence(query: string, limit = 8): Promise<VisibilityEvidenceHit[]> {
   const client = antflyClient();
-  const table = await ensureTables();
   const settings = antflySettings();
-  const result = await client.tables.query(table, {
+  const result = await client.tables.query(settings.table, {
     full_text_search: { query },
-    filter_query: conjunction([
-      namespaceFilter(),
-      disjunction([
-        term("visibility_observation", "type"),
-        term("visibility_citation", "type"),
-      ]),
+    filter_prefix: namespacePrefix(),
+    filter_query: disjunction([
+      term("visibility_observation", "type"),
+      term("visibility_citation", "type"),
     ]),
     indexes: antflySearchIndexes(settings),
     limit,
@@ -213,12 +225,11 @@ export async function searchVisibilityEvidence(query: string, limit = 8): Promis
 
 export async function searchSources(query: string, limit = 8, projectId?: string): Promise<SearchHit[]> {
   const client = antflyClient();
-  const table = await ensureTables();
   const settings = antflySettings();
   const request: QueryRequest = {
     full_text_search: { query },
+    filter_prefix: namespacePrefix(),
     filter_query: conjunction([
-      namespaceFilter(),
       term("source", "type"),
       ...(projectId ? [term(projectId, "projectId")] : []),
     ]),
@@ -228,7 +239,7 @@ export async function searchSources(query: string, limit = 8, projectId?: string
       ? { semantic_search: query, merge_config: { strategy: "rrf" } }
       : {}),
   } as QueryRequest;
-  const result = await client.tables.query(table, request);
+  const result = await client.tables.query(settings.table, request);
   return extractHits(result).map((hit) => ({
     id: String(hit._id || hit._key || "unknown"),
     score: typeof hit._score === "number" ? hit._score : 0,
@@ -238,14 +249,15 @@ export async function searchSources(query: string, limit = 8, projectId?: string
 
 export async function searchMultimodalEvidence(query: string, limit = 8): Promise<MultimodalSearchHit[]> {
   const client = antflyClient();
-  const table = await ensureTables();
   const settings = antflySettings();
+  const table = settings.table;
   const searches: Promise<unknown>[] = [];
 
   if (settings.assetMetadataSearchEnabled && settings.assetMetadataIndex) {
     searches.push(client.tables.query(table, {
       semantic_search: query,
-      filter_query: conjunction([namespaceFilter(), term("asset", "type")]),
+      filter_prefix: namespacePrefix(),
+      filter_query: term("asset", "type"),
       indexes: [settings.assetMetadataIndex],
       limit,
     } as QueryRequest));
@@ -254,8 +266,8 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
   if (settings.visualSearchEnabled && settings.visualIndex) {
     searches.push(client.tables.query(table, {
       semantic_search: query,
+      filter_prefix: namespacePrefix(),
       filter_query: conjunction([
-        namespaceFilter(),
         term("asset", "type"),
         term("image", "assetKind"),
         term("true", "indexable"),

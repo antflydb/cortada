@@ -41,11 +41,8 @@ const emptyVisibility: VisibilityOverview = {
 };
 
 async function loadWorkspace() {
-  const [overview, visibility] = await Promise.all([
-    jsonRequest<{ ok: true } & Overview>("/api/overview", { cache: "no-store" }),
-    jsonRequest<{ ok: true } & VisibilityOverview>("/api/visibility", { cache: "no-store" }),
-  ]);
-  return { overview, visibility };
+  const overview = await jsonRequest<{ ok: true; visibility: VisibilityOverview } & Overview>("/api/overview", { cache: "no-store" });
+  return { overview, visibility: overview.visibility };
 }
 
 export function Workbench() {
