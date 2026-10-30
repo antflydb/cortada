@@ -220,15 +220,49 @@ export type SiteSummary = {
 
 export type SearchHit = {
   id: string;
+  rank?: number;
   score: number;
+  indexScores?: Record<string, number>;
   source: SourceDocument;
+};
+
+export type AnswerabilityMode = "keyword" | "semantic" | "hybrid" | "hybrid-reranked";
+
+export type AnswerabilityRun = {
+  mode: AnswerabilityMode;
+  label: string;
+  description: string;
+  status: "supported" | "partial" | "not-found" | "unavailable";
+  evidenceCount: number;
+  evidence: SearchHit[];
+  latencyMs: number;
+  engineTookMs?: number;
+  error?: string;
+  pipeline: {
+    fullTextIndex?: string;
+    embeddingIndexes: string[];
+    fusion?: "rrf" | "rsf";
+    reranker?: string;
+    pruner?: string;
+  };
+  profile?: {
+    shards?: { total?: number; successful?: number; failed?: number };
+    merge?: { strategy?: string; fullTextHits?: number; semanticHits?: number; durationMs?: number };
+    reranker?: { model?: string; documentsReranked?: number; durationMs?: number };
+  };
 };
 
 export type AnswerabilityResult = {
   question: string;
-  status: "supported" | "partial" | "not-found";
-  evidenceCount: number;
-  evidence: SearchHit[];
+  runs: AnswerabilityRun[];
+  capabilities: {
+    keyword: true;
+    semantic: boolean;
+    hybrid: boolean;
+    reranking: boolean;
+    fullTextIndex: string;
+    embeddingIndex?: string;
+  };
   testedAt: string;
 };
 

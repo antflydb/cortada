@@ -29,7 +29,9 @@ Each audited hostname is a project workspace. The selectors write the active pro
 
 ## Answerability
 
-The answerability panel sends a customer question to Antfly full-text and optional semantic retrieval. It returns supporting pages and reports whether evidence was found. This is a retrievability test, not an LLM-generated answer or subjective model grade.
+The Answerability Lab sends the same customer question through every retrieval path enabled on the Antfly deployment. BM25 keyword retrieval always runs; semantic and hybrid reciprocal-rank fusion run when the configured embedding index is available. `ANTFLY_ENABLE_RERANKING=true` adds a fourth path using Antfly's built-in cross-encoder and score pruning.
+
+Each comparison reports ranked supporting pages, Antfly's result and per-index scores, configured indexes, engine execution time, request round-trip time, and available merge or reranker profile data. The supported/partial/not-found label remains a deterministic evidence-count classification. Cortada does not generate an answer or ask another model to grade one.
 
 ## Reports
 

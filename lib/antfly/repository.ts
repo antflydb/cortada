@@ -5,6 +5,8 @@ import { antflySettings } from "./config";
 import { antflySearchIndexes } from "./search-indexes";
 import type {
   AnalysisDocument,
+  AnswerabilityMode,
+  AnswerabilityRun,
   AssetDocument,
   CrawlRunDocument,
   MultimodalAnalysisDocument,
@@ -15,6 +17,7 @@ import type {
   SourceDocument,
 } from "@/lib/types";
 import { buildSiteSummary } from "@/lib/aeo/site";
+import { answerabilityModes, answerabilityStatus, availableAnswerabilityModes, numericIndexScores } from "@/lib/answerability/retrieval";
 import { belongsToProject, resolveComparisonRun, resolveProject, resolveRun, scopeVisibilityDocuments } from "@/lib/projects/scope";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
@@ -88,6 +91,12 @@ function extractHits(result: unknown): UnknownRecord[] {
   const first = responses[0];
   if (!isRecord(first) || !isRecord(first.hits) || !Array.isArray(first.hits.hits)) return [];
   return first.hits.hits.filter(isRecord);
+}
+
+function extractQueryResult(result: unknown): UnknownRecord | undefined {
+  if (!isRecord(result)) return undefined;
+  const responses = Array.isArray(result.responses) ? result.responses : [];
+  return responses.find(isRecord);
 }
 
 function normalizeHit<T>(hit: UnknownRecord): T {
@@ -282,6 +291,137 @@ export async function searchSources(query: string, limit = 8, projectId?: string
     score: typeof hit._score === "number" ? hit._score : 0,
     source: normalizeHit<SourceDocument>(hit),
   }));
+}
+
+async function runSourceSearch(
+  query: string,
+  projectId: string,
+  mode: AnswerabilityMode,
+  limit: number,
+): Promise<AnswerabilityRun> {
+  const client = antflyClient();
+  const settings = antflySettings();
+  const semantic = mode !== "keyword";
+  const fullText = mode !== "semantic";
+  const reranked = mode === "hybrid-reranked";
+  const request: QueryRequest = {
+    ...(fullText ? { full_text_search: { query } } : {}),
+    ...(semantic ? { semantic_search: query, indexes: [settings.embeddingIndex!] } : {}),
+    ...(mode === "hybrid" || reranked ? { merge_config: { strategy: "rrf" as const } } : {}),
+    ...(reranked ? {
+      reranker: { provider: "antfly", field: "text" },
+      pruner: { min_score_ratio: 0.5, max_score_gap_percent: 30 },
+    } : {}),
+    filter_prefix: namespacePrefix(),
+    filter_query: conjunction([term("source", "type"), term(projectId, "projectId")]),
+    limit,
+    profile: true,
+  } as QueryRequest;
+  const startedAt = performance.now();
+  const result = await client.tables.query(settings.table, request);
+  const latencyMs = Math.round(performance.now() - startedAt);
+  const queryResult = extractQueryResult(result);
+  const profile = isRecord(queryResult?.profile) ? queryResult.profile : undefined;
+  const merge = isRecord(profile?.merge) ? profile.merge : undefined;
+  const reranker = isRecord(profile?.reranker) ? profile.reranker : undefined;
+  const shards = isRecord(profile?.shards) ? profile.shards : undefined;
+  const evidence = extractHits(result).map((hit, index): SearchHit => {
+    const indexScores = numericIndexScores(hit._index_scores);
+    return {
+      id: String(hit._id || hit._key || "unknown"),
+      rank: index + 1,
+      score: typeof hit._score === "number" ? hit._score : 0,
+      ...(indexScores ? { indexScores } : {}),
+      source: normalizeHit<SourceDocument>(hit),
+    };
+  });
+  const modeCopy = answerabilityModes[mode];
+  return {
+    mode,
+    ...modeCopy,
+    status: answerabilityStatus(evidence.length),
+    evidenceCount: evidence.length,
+    evidence,
+    latencyMs,
+    ...(typeof queryResult?.took === "number" ? { engineTookMs: queryResult.took } : {}),
+    pipeline: {
+      ...(fullText ? { fullTextIndex: settings.fullTextIndex } : {}),
+      embeddingIndexes: semantic && settings.embeddingIndex ? [settings.embeddingIndex] : [],
+      ...(mode === "hybrid" || reranked ? { fusion: "rrf" as const } : {}),
+      ...(reranked ? { reranker: "Antfly built-in cross-encoder", pruner: "50% score ratio · 30% gap" } : {}),
+    },
+    ...((shards || merge || reranker) ? {
+      profile: {
+        ...(shards ? { shards: {
+          ...(typeof shards.total === "number" ? { total: shards.total } : {}),
+          ...(typeof shards.successful === "number" ? { successful: shards.successful } : {}),
+          ...(typeof shards.failed === "number" ? { failed: shards.failed } : {}),
+        } } : {}),
+        ...(merge ? { merge: {
+          ...(typeof merge.strategy === "string" ? { strategy: merge.strategy } : {}),
+          ...(typeof merge.full_text_hits === "number" ? { fullTextHits: merge.full_text_hits } : {}),
+          ...(typeof merge.semantic_hits === "number" ? { semanticHits: merge.semantic_hits } : {}),
+          ...(typeof merge.duration_ms === "number" ? { durationMs: merge.duration_ms } : {}),
+        } } : {}),
+        ...(reranker ? { reranker: {
+          ...(typeof reranker.model === "string" ? { model: reranker.model } : {}),
+          ...(typeof reranker.documents_reranked === "number" ? { documentsReranked: reranker.documents_reranked } : {}),
+          ...(typeof reranker.duration_ms === "number" ? { durationMs: reranker.duration_ms } : {}),
+        } } : {}),
+      },
+    } : {}),
+  };
+}
+
+export async function compareSourceRetrieval(
+  query: string,
+  projectId: string,
+  limit = 5,
+): Promise<{ runs: AnswerabilityRun[]; capabilities: {
+  keyword: true;
+  semantic: boolean;
+  hybrid: boolean;
+  reranking: boolean;
+  fullTextIndex: string;
+  embeddingIndex?: string;
+} }> {
+  const settings = antflySettings();
+  const semanticEnabled = settings.embeddingsEnabled && Boolean(settings.embeddingIndex);
+  const modes = availableAnswerabilityModes(semanticEnabled, settings.rerankingEnabled);
+  const runs = await Promise.all(modes.map(async (mode): Promise<AnswerabilityRun> => {
+    try {
+      return await runSourceSearch(query, projectId, mode, limit);
+    } catch {
+      return {
+        mode,
+        ...answerabilityModes[mode],
+        status: "unavailable",
+        evidenceCount: 0,
+        evidence: [],
+        latencyMs: 0,
+        error: "This retrieval path is unavailable on the current Antfly index configuration.",
+        pipeline: {
+          ...(mode !== "semantic" ? { fullTextIndex: settings.fullTextIndex } : {}),
+          embeddingIndexes: mode !== "keyword" && settings.embeddingIndex ? [settings.embeddingIndex] : [],
+          ...(mode === "hybrid" || mode === "hybrid-reranked" ? { fusion: "rrf" as const } : {}),
+        },
+      };
+    }
+  }));
+  if (runs.every((run) => run.status === "unavailable")) {
+    throw new Error("Every Antfly retrieval path was unavailable");
+  }
+  return {
+    runs,
+    capabilities: {
+      keyword: true,
+      semantic: semanticEnabled,
+      hybrid: semanticEnabled,
+      reranking: semanticEnabled && settings.rerankingEnabled,
+      fullTextIndex: settings.fullTextIndex,
+      ...(settings.embeddingIndex ? { embeddingIndex: settings.embeddingIndex } : {}),
+    },
+  };
 }
 
 export async function searchMultimodalEvidence(query: string, limit = 8, projectId?: string): Promise<MultimodalSearchHit[]> {

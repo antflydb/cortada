@@ -12,7 +12,7 @@ Run it as Cortada or rebrand it for your own company. The same application works
 - Deterministic, versioned 100-point AEO audit profiles
 - Site-wide issue aggregation, immutable crawl runs, selectable score history, arbitrary run comparisons and partial-failure reporting
 - Stable project workspaces that keep dashboards, searches and exports scoped to one audited site
-- Antfly answerability tests that retrieve supporting site evidence without model-generated grading
+- An Antfly Answerability Lab comparing BM25, semantic, hybrid RRF and optional reranked retrieval without model-generated grading
 - Actionable page recommendations with observed evidence, implementation guidance and copyable examples
 - White-label HTML/print, Markdown and JSON report exports
 - Antfly-native visibility campaigns with immutable prompts, observations, citations and evidence retrieval
@@ -93,6 +93,7 @@ The product uses the `default` table created by Antfly Lite. Set `ANTFLY_ENABLE_
 | `ANTFLY_FULL_TEXT_INDEX` | Yes | Full-text index; defaults to `full_text_index_v0` |
 | `ANTFLY_ENABLE_EMBEDDINGS` | No | Enables Antfly embeddings and hybrid RRF search |
 | `ANTFLY_EMBEDDING_INDEX` | When enabled | Existing Antfly embedding index name |
+| `ANTFLY_ENABLE_RERANKING` | No | Adds Antfly's built-in reranking and pruning path to the Answerability Lab |
 | `ANTFLY_ENABLE_ASSET_SEARCH` | No | Enables semantic retrieval over image/PDF metadata |
 | `ANTFLY_ASSET_INDEX` | When enabled | Asset metadata embedding index name |
 | `ANTFLY_ENABLE_MULTIMODAL` | No | Enables Antfly text-to-image retrieval |

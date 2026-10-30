@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { searchSources } from "@/lib/antfly/repository";
+import { compareSourceRetrieval } from "@/lib/antfly/repository";
 import { limitRequest, rateLimitHeaders, tooManyRequests } from "@/lib/security/rate-limit";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import type { AnswerabilityResult } from "@/lib/types";
@@ -17,12 +17,10 @@ export async function POST(request: Request) {
   if (!rateLimit.allowed) return tooManyRequests(rateLimit);
   try {
     const { question, projectId } = requestSchema.parse(await readJsonBody(request));
-    const evidence = await searchSources(question, 5, projectId);
+    const comparison = await compareSourceRetrieval(question, projectId, 5);
     const result: AnswerabilityResult = {
       question,
-      status: evidence.length >= 3 ? "supported" : evidence.length ? "partial" : "not-found",
-      evidenceCount: evidence.length,
-      evidence,
+      ...comparison,
       testedAt: new Date().toISOString(),
     };
     return NextResponse.json({ ok: true, result }, { headers: rateLimitHeaders(rateLimit) });
