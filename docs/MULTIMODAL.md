@@ -8,6 +8,8 @@ Every page audit discovers at most 50 images and 20 PDF links, resolves and dedu
 
 The deterministic multimodal readiness report measures useful image alt-text coverage, caption or nearby-context coverage, descriptive PDF link coverage, and media-host approval gaps. It has its own score and findings and never modifies the core AEO audit.
 
+Multimodal readiness analyses are immutable per crawl run and appear with historical audit snapshots. Asset records and extracted retrieval artifacts represent the project's latest retained evidence, so a historical view labels that inventory and semantic search accordingly instead of implying that mutable asset bytes were snapshotted.
+
 ## Antfly visual retrieval
 
 ### Semantic asset metadata

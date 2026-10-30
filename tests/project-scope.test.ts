@@ -2,10 +2,13 @@ import { describe, expect, it } from "vitest";
 import {
   belongsToProject,
   ProjectNotFoundError,
+  resolveComparisonRun,
   resolveProject,
+  resolveRun,
+  RunNotFoundError,
   scopeVisibilityDocuments,
 } from "@/lib/projects/scope";
-import type { ProjectDocument } from "@/lib/types";
+import type { CrawlRunDocument, ProjectDocument } from "@/lib/types";
 import type { VisibilityDocument } from "@/lib/visibility/types";
 
 const alpha: ProjectDocument = {
@@ -80,6 +83,24 @@ const visibilityDocuments: VisibilityDocument[] = [
   },
 ];
 
+function run(id: string): CrawlRunDocument {
+  return {
+    id,
+    type: "crawl_run",
+    workspaceId: "workspace",
+    projectId: alpha.id,
+    brandName: alpha.brandName,
+    rootUrl: alpha.rootUrl,
+    status: "completed",
+    requestedPages: 1,
+    completedPages: 1,
+    averageScore: 75,
+    failures: [],
+    startedAt: id,
+    completedAt: id,
+  };
+}
+
 describe("project workspace scoping", () => {
   it("uses the newest project by default and honors an explicit project", () => {
     expect(resolveProject([alpha, beta])?.id).toBe(alpha.id);
@@ -88,6 +109,15 @@ describe("project workspace scoping", () => {
 
   it("rejects a project outside the loaded workspace", () => {
     expect(() => resolveProject([alpha], "workspace:project:missing")).toThrow(ProjectNotFoundError);
+  });
+
+  it("resolves selected and comparison runs without crossing the project scope", () => {
+    const latest = run("run:2");
+    const previous = run("run:1");
+    expect(resolveRun([latest, previous], previous.id)).toBe(previous);
+    expect(resolveComparisonRun([latest, previous], latest)).toBe(previous);
+    expect(() => resolveRun([latest], "run:missing")).toThrow(RunNotFoundError);
+    expect(() => resolveComparisonRun([latest, previous], latest, latest.id)).toThrow(RunNotFoundError);
   });
 
   it("excludes documents without the selected project id", () => {

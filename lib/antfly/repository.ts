@@ -15,7 +15,7 @@ import type {
   SourceDocument,
 } from "@/lib/types";
 import { buildSiteSummary } from "@/lib/aeo/site";
-import { belongsToProject, resolveProject, scopeVisibilityDocuments } from "@/lib/projects/scope";
+import { belongsToProject, resolveComparisonRun, resolveProject, resolveRun, scopeVisibilityDocuments } from "@/lib/projects/scope";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
   VisibilityCitationDocument,
@@ -120,7 +120,12 @@ async function loadWorkspaceDocuments(limit = 3_000): Promise<WorkspaceDocument[
   return extractHits(result).map(normalizeHit<WorkspaceDocument>);
 }
 
-function buildOverview(documents: WorkspaceDocument[], requestedProjectId?: string): Overview & { selectedProjectId?: string } {
+function buildOverview(
+  documents: WorkspaceDocument[],
+  requestedProjectId?: string,
+  requestedRunId?: string,
+  requestedComparisonRunId?: string,
+): Overview {
   const settings = antflySettings();
   const projects = documents
     .filter((document): document is ProjectDocument => document.type === "project")
@@ -131,6 +136,8 @@ function buildOverview(documents: WorkspaceDocument[], requestedProjectId?: stri
     .filter((document): document is CrawlRunDocument => document.type === "crawl_run")
     .filter((document) => belongsToProject(document, selectedProjectId))
     .sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  const selectedRun = resolveRun(crawlRuns, requestedRunId);
+  const comparisonRun = resolveComparisonRun(crawlRuns, selectedRun, requestedComparisonRunId);
   const sources = documents
     .filter((document): document is SourceDocument => document.type === "source")
     .filter((document) => belongsToProject(document, selectedProjectId));
@@ -149,6 +156,8 @@ function buildOverview(documents: WorkspaceDocument[], requestedProjectId?: stri
   return {
     projects,
     selectedProjectId,
+    selectedRunId: selectedRun?.id,
+    comparisonRunId: comparisonRun?.id,
     crawlRuns,
     sources,
     analyses,
@@ -160,7 +169,7 @@ function buildOverview(documents: WorkspaceDocument[], requestedProjectId?: stri
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
     },
-    siteSummary: buildSiteSummary(projects, crawlRuns, analyses),
+    siteSummary: buildSiteSummary(projects, crawlRuns, analyses, selectedRun?.id, comparisonRun?.id),
   };
 }
 
@@ -170,9 +179,13 @@ function visibilityDocuments(documents: WorkspaceDocument[]): VisibilityDocument
   );
 }
 
-export async function getWorkspaceOverview(requestedProjectId?: string): Promise<Overview & { selectedProjectId?: string; visibility: VisibilityOverview }> {
+export async function getWorkspaceOverview(
+  requestedProjectId?: string,
+  requestedRunId?: string,
+  requestedComparisonRunId?: string,
+): Promise<Overview & { visibility: VisibilityOverview }> {
   const documents = await loadWorkspaceDocuments();
-  const overview = buildOverview(documents, requestedProjectId);
+  const overview = buildOverview(documents, requestedProjectId, requestedRunId, requestedComparisonRunId);
   const selectedProject = overview.projects.find((project) => project.id === overview.selectedProjectId);
   return {
     ...overview,
@@ -180,8 +193,12 @@ export async function getWorkspaceOverview(requestedProjectId?: string): Promise
   };
 }
 
-export async function getOverview(requestedProjectId?: string): Promise<Overview> {
-  return buildOverview(await loadWorkspaceDocuments(), requestedProjectId);
+export async function getOverview(
+  requestedProjectId?: string,
+  requestedRunId?: string,
+  requestedComparisonRunId?: string,
+): Promise<Overview> {
+  return buildOverview(await loadWorkspaceDocuments(), requestedProjectId, requestedRunId, requestedComparisonRunId);
 }
 
 export async function getVisibilityOverview(requestedProjectId?: string) {

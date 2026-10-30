@@ -14,6 +14,7 @@ type MultimodalPanelProps = {
   hits: MultimodalSearchHit[];
   searching: boolean;
   enabled: boolean;
+  isHistoricalRun: boolean;
   onQueryChange: (value: string) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 };
@@ -30,6 +31,7 @@ export function MultimodalPanel({
   hits,
   searching,
   enabled,
+  isHistoricalRun,
   onQueryChange,
   onSubmit,
 }: MultimodalPanelProps) {
@@ -44,6 +46,9 @@ export function MultimodalPanel({
     : capabilities.assetMetadataSearchEnabled
       ? "Antfly semantic search retrieves images and PDFs from their durable alt text, captions, labels, and surrounding context. Pixel embeddings remain feature-gated."
       : "Asset discovery is active. Retrieval stays disabled until the deployment has a compatible Antfly index.";
+  const scopedRetrievalDescription = isHistoricalRun
+    ? `Historical readiness is shown above. Retrieval searches the project's currently retained Antfly evidence. ${retrievalDescription}`
+    : retrievalDescription;
 
   return (
     <section className="multimodal-section">
@@ -71,7 +76,7 @@ export function MultimodalPanel({
         </article>
 
         <article className="asset-inventory">
-          <div className="card-title"><span>Discovered assets</span><small>stored in Antfly</small></div>
+          <div className="card-title"><span>Discovered assets</span><small>{isHistoricalRun ? "latest retained records" : "stored in Antfly"}</small></div>
           {relevantAssets.length ? <div className="asset-list">{relevantAssets.slice(0, 8).map((asset) => (
             <a key={asset.id} href={asset.url} target="_blank" rel="noreferrer">
               {asset.assetKind === "image" ? <img src={asset.url} alt={asset.altText || "Discovered page image"} loading="lazy" referrerPolicy="no-referrer" /> : <span className="pdf-tile">PDF</span>}
@@ -85,7 +90,7 @@ export function MultimodalPanel({
         <div>
           <span>Cross-modal retrieval</span>
           <h3>Search visual and PDF evidence by meaning</h3>
-          <p>{retrievalDescription}</p>
+          <p>{scopedRetrievalDescription}</p>
         </div>
         <form onSubmit={onSubmit}>
           <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="e.g. diagram showing private deployment" minLength={2} maxLength={300} disabled={!retrievalEnabled} required />

@@ -41,30 +41,45 @@ export function buildSiteSummary(
   projects: ProjectDocument[],
   crawlRuns: CrawlRunDocument[],
   analyses: AnalysisDocument[],
+  selectedRunId?: string,
+  comparisonRunId?: string,
 ): SiteSummary | null {
-  const run = [...crawlRuns].sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0];
+  const sortedRuns = [...crawlRuns].sort((a, b) => b.completedAt.localeCompare(a.completedAt));
+  const run = selectedRunId ? sortedRuns.find((candidate) => candidate.id === selectedRunId) : sortedRuns[0];
   if (!run) return null;
   const project = projects.find((candidate) => candidate.id === run.projectId);
   if (!project) return null;
   const currentAnalyses = analyses.filter((analysis) => analysis.crawlRunId === run.id);
   const findings = findingsFor(currentAnalyses);
-  const previousRun = crawlRuns
-    .filter((candidate) => candidate.projectId === run.projectId && candidate.id !== run.id && candidate.completedPages > 0)
-    .sort((a, b) => b.completedAt.localeCompare(a.completedAt))[0];
+  const selectedIndex = sortedRuns.findIndex((candidate) => candidate.id === run.id);
+  const comparisonRun = comparisonRunId
+    ? sortedRuns.find((candidate) => candidate.id === comparisonRunId && candidate.id !== run.id)
+    : sortedRuns.slice(selectedIndex + 1).find((candidate) => candidate.completedPages > 0);
   let comparison: SiteSummary["comparison"] = null;
-  if (previousRun) {
-    const previousAnalyses = analyses.filter((analysis) => analysis.crawlRunId === previousRun.id);
-    const previousFindings = findingsFor(previousAnalyses);
+  if (comparisonRun) {
+    const comparisonAnalyses = analyses.filter((analysis) => analysis.crawlRunId === comparisonRun.id);
+    const comparisonFindings = findingsFor(comparisonAnalyses);
     const currentIds = new Set(findings.map((finding) => finding.id));
-    const previousIds = new Set(previousFindings.map((finding) => finding.id));
+    const comparisonIds = new Set(comparisonFindings.map((finding) => finding.id));
     comparison = {
-      previousRunId: previousRun.id,
-      scoreDelta: Math.round((run.averageScore ?? 0) - (previousRun.averageScore ?? 0)),
-      pageDelta: run.completedPages - previousRun.completedPages,
-      newFindings: [...currentIds].filter((id) => !previousIds.has(id)),
-      resolvedFindings: [...previousIds].filter((id) => !currentIds.has(id)),
+      comparisonRunId: comparisonRun.id,
+      scoreDelta: Math.round((run.averageScore ?? 0) - (comparisonRun.averageScore ?? 0)),
+      pageDelta: run.completedPages - comparisonRun.completedPages,
+      newFindings: [...currentIds].filter((id) => !comparisonIds.has(id)),
+      resolvedFindings: [...comparisonIds].filter((id) => !currentIds.has(id)),
     };
   }
+  const history = sortedRuns.map((historyRun) => {
+    const runAnalyses = analyses.filter((analysis) => analysis.crawlRunId === historyRun.id);
+    return {
+      run: historyRun,
+      pageCount: runAnalyses.length,
+      averageScore: runAnalyses.length
+        ? Math.round(runAnalyses.reduce((sum, analysis) => sum + analysis.score, 0) / runAnalyses.length)
+        : historyRun.averageScore ?? 0,
+      findingCount: findingsFor(runAnalyses).length,
+    };
+  });
   return {
     project,
     run,
@@ -73,6 +88,8 @@ export function buildSiteSummary(
       ? Math.round(currentAnalyses.reduce((sum, analysis) => sum + analysis.score, 0) / currentAnalyses.length)
       : 0,
     findings,
+    history,
+    latestRunId: sortedRuns[0].id,
     comparison,
   };
 }

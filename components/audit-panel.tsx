@@ -6,6 +6,7 @@ type AuditPanelProps = {
   overview: Overview;
   selected?: AnalysisDocument;
   averageScore: number;
+  isLatestRun: boolean;
 };
 
 function gradeLabel(analysis?: AnalysisDocument) {
@@ -15,7 +16,7 @@ function gradeLabel(analysis?: AnalysisDocument) {
   return "Needs work";
 }
 
-export function AuditPanel({ loading, overview, selected, averageScore }: AuditPanelProps) {
+export function AuditPanel({ loading, overview, selected, averageScore, isLatestRun }: AuditPanelProps) {
   return (
     <>
       <section className="metrics" aria-label="Workspace metrics">
@@ -27,7 +28,7 @@ export function AuditPanel({ loading, overview, selected, averageScore }: AuditP
 
       <section className="workspace">
         <div className="section-heading">
-          <div><p className="eyebrow">Latest evidence</p><h2>{selected ? selected.title : "Your first audit appears here"}</h2></div>
+          <div><p className="eyebrow">{isLatestRun ? "Latest run evidence" : "Historical run evidence"}</p><h2>{selected ? selected.title : "Your first audit appears here"}</h2></div>
           {selected && <a href={selected.url} target="_blank" rel="noreferrer">Open source ↗</a>}
         </div>
 

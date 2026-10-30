@@ -169,6 +169,9 @@ export type MultimodalCapabilities = {
 };
 
 export type Overview = {
+  selectedProjectId?: string;
+  selectedRunId?: string;
+  comparisonRunId?: string;
   projects: ProjectDocument[];
   crawlRuns: CrawlRunDocument[];
   sources: SourceDocument[];
@@ -190,11 +193,18 @@ export type SiteFinding = {
 };
 
 export type SiteComparison = {
-  previousRunId: string;
+  comparisonRunId: string;
   scoreDelta: number;
   pageDelta: number;
   newFindings: string[];
   resolvedFindings: string[];
+};
+
+export type SiteRunHistoryEntry = {
+  run: CrawlRunDocument;
+  pageCount: number;
+  averageScore: number;
+  findingCount: number;
 };
 
 export type SiteSummary = {
@@ -203,6 +213,8 @@ export type SiteSummary = {
   pageCount: number;
   averageScore: number;
   findings: SiteFinding[];
+  history: SiteRunHistoryEntry[];
+  latestRunId: string;
   comparison: SiteComparison | null;
 };
 

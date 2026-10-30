@@ -65,8 +65,28 @@ describe("site-wide audit summaries", () => {
       analysis("d", latest.id, "https://example.com/about", 80, "schema"),
     ]);
     expect(summary?.averageScore).toBe(70);
+    expect(summary?.history.map((entry) => entry.averageScore)).toEqual([70, 50]);
     expect(summary?.findings[0]).toMatchObject({ id: "schema", affectedPages: 2, totalPages: 2 });
-    expect(summary?.comparison).toMatchObject({ scoreDelta: 20, resolvedFindings: ["meta"], newFindings: [] });
+    expect(summary?.comparison).toMatchObject({ comparisonRunId: previous.id, scoreDelta: 20, resolvedFindings: ["meta"], newFindings: [] });
+  });
+
+  it("selects and compares arbitrary immutable runs", () => {
+    const oldest = run("run:1", "2026-10-01T00:00:00.000Z", 40);
+    const middle = run("run:2", "2026-10-02T00:00:00.000Z", 60);
+    const latest = run("run:3", "2026-10-03T00:00:00.000Z", 80);
+    const summary = buildSiteSummary([project], [oldest, middle, latest], [
+      analysis("a", oldest.id, "https://example.com/", 40, "meta"),
+      analysis("b", middle.id, "https://example.com/", 60, "schema"),
+      analysis("c", latest.id, "https://example.com/", 80),
+    ], middle.id, oldest.id);
+    expect(summary?.run.id).toBe(middle.id);
+    expect(summary?.latestRunId).toBe(latest.id);
+    expect(summary?.comparison).toMatchObject({
+      comparisonRunId: oldest.id,
+      scoreDelta: 20,
+      resolvedFindings: ["meta"],
+      newFindings: ["schema"],
+    });
   });
 });
 

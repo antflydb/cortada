@@ -41,18 +41,26 @@ const emptyVisibility: VisibilityOverview = {
   topCitedDomains: [],
 };
 
-type WorkspacePayload = { ok: true; visibility: VisibilityOverview; selectedProjectId?: string } & Overview;
+type WorkspacePayload = { ok: true; visibility: VisibilityOverview } & Overview;
 
-async function loadWorkspace(projectId?: string) {
-  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+async function loadWorkspace(projectId?: string, runId?: string, compareTo?: string) {
+  const searchParams = new URLSearchParams();
+  if (projectId) searchParams.set("projectId", projectId);
+  if (runId) searchParams.set("runId", runId);
+  if (compareTo) searchParams.set("compareTo", compareTo);
+  const query = searchParams.size ? `?${searchParams}` : "";
   const overview = await jsonRequest<WorkspacePayload>(`/api/overview${query}`, { cache: "no-store" });
   return { overview, visibility: overview.visibility };
 }
 
-function updateProjectUrl(projectId?: string) {
+function updateWorkspaceUrl(projectId?: string, runId?: string, compareTo?: string) {
   const next = new URL(window.location.href);
   if (projectId) next.searchParams.set("project", projectId);
   else next.searchParams.delete("project");
+  if (runId) next.searchParams.set("run", runId);
+  else next.searchParams.delete("run");
+  if (compareTo) next.searchParams.set("compare", compareTo);
+  else next.searchParams.delete("compare");
   window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
 }
 
@@ -91,15 +99,20 @@ export function Workbench() {
   const [multimodalHits, setMultimodalHits] = useState<MultimodalSearchHit[]>([]);
   const [multimodalSearching, setMultimodalSearching] = useState(false);
 
-  async function refresh(preserveMessage = false, projectId = selectedProjectId) {
+  async function refresh(
+    preserveMessage = false,
+    projectId = selectedProjectId,
+    runId: string | null | undefined = overview.selectedRunId,
+    compareTo: string | null | undefined = overview.comparisonRunId,
+  ) {
     setLoading(true);
     try {
-      const result = await loadWorkspace(projectId);
+      const result = await loadWorkspace(projectId, runId || undefined, compareTo || undefined);
       setOverview(result.overview);
       setVisibility(result.visibility);
       setSelectedProjectId(result.overview.selectedProjectId);
-      updateProjectUrl(result.overview.selectedProjectId);
-      setSelected(result.overview.analyses[0]);
+      updateWorkspaceUrl(result.overview.selectedProjectId, result.overview.selectedRunId, result.overview.comparisonRunId);
+      setSelected(result.overview.analyses.find((analysis) => analysis.crawlRunId === result.overview.selectedRunId));
       if (!preserveMessage) setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load the workspace");
@@ -110,13 +123,15 @@ export function Workbench() {
 
   useEffect(() => {
     const requestedProjectId = new URL(window.location.href).searchParams.get("project") || undefined;
-    void loadWorkspace(requestedProjectId)
+    const requestedRunId = new URL(window.location.href).searchParams.get("run") || undefined;
+    const requestedComparisonRunId = new URL(window.location.href).searchParams.get("compare") || undefined;
+    void loadWorkspace(requestedProjectId, requestedRunId, requestedComparisonRunId)
       .then((result) => {
         setOverview(result.overview);
         setVisibility(result.visibility);
         setSelectedProjectId(result.overview.selectedProjectId);
-        updateProjectUrl(result.overview.selectedProjectId);
-        setSelected(result.overview.analyses[0]);
+        updateWorkspaceUrl(result.overview.selectedProjectId, result.overview.selectedRunId, result.overview.comparisonRunId);
+        setSelected(result.overview.analyses.find((analysis) => analysis.crawlRunId === result.overview.selectedRunId));
         setMessage("");
       })
       .catch((error: unknown) => setMessage(error instanceof Error ? error.message : "Could not load the workspace"))
@@ -128,7 +143,17 @@ export function Workbench() {
     setAnswerability(undefined);
     setVisibilityHits([]);
     setMultimodalHits([]);
-    await refresh(false, projectId);
+    await refresh(false, projectId, null, null);
+  }
+
+  async function selectRun(runId: string) {
+    if (!runId || runId === overview.selectedRunId) return;
+    await refresh(false, selectedProjectId, runId, null);
+  }
+
+  async function selectComparison(runId: string) {
+    if (!runId || runId === overview.selectedRunId || runId === overview.comparisonRunId) return;
+    await refresh(false, selectedProjectId, overview.selectedRunId, runId);
   }
 
   const averageScore = useMemo(() => {
@@ -138,10 +163,10 @@ export function Workbench() {
   }, [overview.analyses, overview.siteSummary]);
 
   const selectedMultimodal = useMemo(() => {
-    if (!selected) return overview.multimodalAnalyses[0];
-    return overview.multimodalAnalyses.find((analysis) => analysis.sourceId === selected.sourceId)
-      || overview.multimodalAnalyses[0];
-  }, [overview.multimodalAnalyses, selected]);
+    const runAnalyses = overview.multimodalAnalyses.filter((analysis) => analysis.crawlRunId === overview.selectedRunId);
+    if (!selected) return runAnalyses[0];
+    return runAnalyses.find((analysis) => analysis.sourceId === selected.sourceId) || runAnalyses[0];
+  }, [overview.multimodalAnalyses, overview.selectedRunId, selected]);
 
   async function submitAudit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -155,13 +180,13 @@ export function Workbench() {
       });
       setSelected(result.analyses[0]);
       setSelectedProjectId(result.project.id);
-      updateProjectUrl(result.project.id);
+      updateWorkspaceUrl(result.project.id, result.run.id);
       setMessage(`${result.run.completedPages} page(s) were indexed and audited in Antfly${result.run.failures.length ? `; ${result.run.failures.length} page(s) failed safely` : ""}.`);
       // Antfly persists the run synchronously while its retrieval index can take
       // a moment to expose it. Delay the dashboard read so comparisons do not
       // briefly fall back to a baseline after a successful repeat run.
       await new Promise((resolve) => setTimeout(resolve, 2_000));
-      await refresh(true, result.project.id);
+      await refresh(true, result.project.id, result.run.id, null);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The page could not be audited");
     } finally {
@@ -229,9 +254,9 @@ export function Workbench() {
       <AuditHero brandName={brandName} url={url} maxPages={maxPages} submitting={submitting} onBrandNameChange={setBrandName} onUrlChange={setUrl} onMaxPagesChange={setMaxPages} onSubmit={submitAudit} />
       {message && <div className="notice" role="status">{message}</div>}
       <ProjectSwitcher projects={overview.projects} selectedProjectId={selectedProjectId} loading={loading} onChange={(projectId) => void selectProject(projectId)} />
-      <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} projectId={selectedProjectId} onSelect={setSelected} />
-      <AuditPanel loading={loading} overview={overview} selected={selected} averageScore={averageScore} />
-      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} enabled={Boolean(selectedProjectId)} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
+      <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} projectId={selectedProjectId} loading={loading} onRunChange={(runId) => void selectRun(runId)} onComparisonChange={(runId) => void selectComparison(runId)} onSelect={setSelected} />
+      <AuditPanel loading={loading} overview={overview} selected={selected} averageScore={averageScore} isLatestRun={overview.siteSummary?.run.id === overview.siteSummary?.latestRunId} />
+      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} enabled={Boolean(selectedProjectId)} isHistoricalRun={overview.siteSummary?.run.id !== overview.siteSummary?.latestRunId} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
       <VisibilityPanel visibility={visibility} query={visibilityQuery} hits={visibilityHits} searching={visibilitySearching} onQueryChange={setVisibilityQuery} onSubmit={submitVisibilitySearch} />
       <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} enabled={Boolean(selectedProjectId)} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
       {productConfig.showArchitecture && <ProductArchitecture />}

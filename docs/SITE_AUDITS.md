@@ -23,9 +23,9 @@ The crawl is intentionally same-host and bounded. Redirects are revalidated agai
 - `asset`: latest image/PDF metadata linked to a source page
 - `multimodal_analysis`: immutable asset-readiness analysis for a run
 
-The latest two crawl runs are compared without changing historical results. Cortada groups recommendation IDs across the latest run to show how many pages share each problem.
+Every analysis and multimodal readiness result is immutable and linked to its crawl run. Cortada exposes the complete run history as a readiness trend, lets an operator inspect any run, and compares any two runs without changing historical results. Recommendation IDs are grouped across the selected run to show how many pages shared each problem at that point in time.
 
-Each audited hostname is a project workspace. The project selector writes the active project to `?project=<project-id>`, making a site dashboard bookmarkable and shareable. Overview data, assets, answerability retrieval, multimodal retrieval, visibility evidence and exports are scoped to that project on the server; changing the selector cannot combine evidence from two sites.
+Each audited hostname is a project workspace. The selectors write the active project, run and optional comparison to `?project=<project-id>&run=<run-id>&compare=<run-id>`, making a historical dashboard bookmarkable and shareable. Overview data, assets, answerability retrieval, multimodal retrieval, visibility evidence and exports are scoped to that project on the server; changing the selector cannot combine evidence from two sites. Run IDs are also validated against the selected project.
 
 ## Answerability
 
@@ -33,7 +33,7 @@ The answerability panel sends a customer question to Antfly full-text and option
 
 ## Reports
 
-`/api/report?projectId=<project-id>` renders a branded HTML report with a print/save-PDF action. Add `format=markdown` or `format=json` for portable exports. The application adds the current project automatically. Reports are generated from Antfly evidence at request time and inherit the deployment's white-label product name and primary color.
+`/api/report?projectId=<project-id>&runId=<run-id>&compareTo=<run-id>` renders a branded HTML report with a print/save-PDF action for the selected historical snapshot. Add `format=markdown` or `format=json` for portable exports. The application adds the current project and run automatically. Reports are generated from Antfly evidence at request time and inherit the deployment's white-label product name and primary color.
 
 ## Operational limits
 
