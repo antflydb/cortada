@@ -11,6 +11,7 @@ Run it as Cortada or rebrand it for your own company. The same application works
 - Bounded same-host site audits using sitemaps, internal links, conservative robots rules, redirect-aware SSRF protection and a 2 MB per-page limit
 - Deterministic, versioned 100-point AEO audit profiles
 - Site-wide issue aggregation, immutable crawl runs, historical score comparisons and partial-failure reporting
+- Stable project workspaces that keep dashboards, searches and exports scoped to one audited site
 - Antfly answerability tests that retrieve supporting site evidence without model-generated grading
 - Actionable page recommendations with observed evidence, implementation guidance and copyable examples
 - White-label HTML/print, Markdown and JSON report exports
@@ -137,7 +138,7 @@ See [Site audits and reports](docs/SITE_AUDITS.md) for the v1 site workflow and 
 npm run check
 ```
 
-The initial workspace request uses one Antfly key-prefix read for audit, multimodal and visibility data. Table and index discovery stay in `npm run setup:antfly` rather than the serverless read path. `/api/overview` exposes its backend duration through the standard `Server-Timing` response header for deployment diagnostics.
+The initial workspace request uses one Antfly key-prefix read for audit, multimodal and visibility data. The active site is encoded as `?project=<project-id>`; server reads, reports and retrieval calls apply that scope before returning evidence. Table and index discovery stay in `npm run setup:antfly` rather than the serverless read path. `/api/overview` exposes its backend duration through the standard `Server-Timing` response header for deployment diagnostics.
 
 ## License
 

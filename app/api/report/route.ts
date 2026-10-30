@@ -1,6 +1,7 @@
 import { getOverview } from "@/lib/antfly/repository";
 import { productConfig } from "@/lib/product/config";
 import type { Overview } from "@/lib/types";
+import { ProjectNotFoundError } from "@/lib/projects/scope";
 
 export const runtime = "nodejs";
 
@@ -53,8 +54,13 @@ function htmlReport(overview: Overview): string {
 
 export async function GET(request: Request) {
   try {
-    const overview = await getOverview();
-    const format = new URL(request.url).searchParams.get("format") || "html";
+    const searchParams = new URL(request.url).searchParams;
+    const projectId = searchParams.get("projectId")?.trim() || undefined;
+    if (projectId && projectId.length > 300) {
+      return Response.json({ ok: false, error: "Invalid project identifier" }, { status: 400 });
+    }
+    const overview = await getOverview(projectId);
+    const format = searchParams.get("format") || "html";
     const filePrefix = productConfig.name.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "") || "aeo";
     if (format === "json") {
       return new Response(JSON.stringify({ generatedAt: new Date().toISOString(), ...overview }, null, 2), {
@@ -68,6 +74,9 @@ export async function GET(request: Request) {
     }
     return new Response(htmlReport(overview), { headers: { "Content-Type": "text/html; charset=utf-8" } });
   } catch (error) {
+    if (error instanceof ProjectNotFoundError) {
+      return Response.json({ ok: false, error: error.message }, { status: 404 });
+    }
     return Response.json({ ok: false, error: error instanceof Error ? error.message : "Report generation failed" }, { status: 503 });
   }
 }

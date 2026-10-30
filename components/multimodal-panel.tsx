@@ -13,6 +13,7 @@ type MultimodalPanelProps = {
   query: string;
   hits: MultimodalSearchHit[];
   searching: boolean;
+  enabled: boolean;
   onQueryChange: (value: string) => void;
   onSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
 };
@@ -28,15 +29,16 @@ export function MultimodalPanel({
   query,
   hits,
   searching,
+  enabled,
   onQueryChange,
   onSubmit,
 }: MultimodalPanelProps) {
   const relevantAssets = analysis
     ? assets.filter((asset) => asset.sourceId === analysis.sourceId)
     : assets.slice(0, 12);
-  const retrievalEnabled = capabilities.assetMetadataSearchEnabled
+  const retrievalEnabled = enabled && (capabilities.assetMetadataSearchEnabled
     || capabilities.visualSearchEnabled
-    || capabilities.pdfExtractionEnabled;
+    || capabilities.pdfExtractionEnabled);
   const retrievalDescription = capabilities.visualSearchEnabled
     ? "Antfly searches approved images in a shared text-image vector space and extracted PDF text when enabled."
     : capabilities.assetMetadataSearchEnabled

@@ -6,16 +6,19 @@ import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 
 export const runtime = "nodejs";
 
-const requestSchema = z.object({ query: z.string().trim().min(2).max(300) });
+const requestSchema = z.object({
+  query: z.string().trim().min(2).max(300),
+  campaignId: z.string().trim().min(1).max(300),
+});
 
 export async function POST(request: Request) {
   const rateLimit = limitRequest(request, "search");
   if (!rateLimit.allowed) return tooManyRequests(rateLimit);
 
   try {
-    const { query } = requestSchema.parse(await readJsonBody(request));
+    const { query, campaignId } = requestSchema.parse(await readJsonBody(request));
     return NextResponse.json(
-      { ok: true, hits: await searchVisibilityEvidence(query) },
+      { ok: true, hits: await searchVisibilityEvidence(query, 8, campaignId) },
       { headers: rateLimitHeaders(rateLimit) },
     );
   } catch (error) {

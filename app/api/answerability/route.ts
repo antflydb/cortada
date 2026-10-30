@@ -9,7 +9,7 @@ export const runtime = "nodejs";
 
 const requestSchema = z.object({
   question: z.string().trim().min(5).max(500),
-  projectId: z.string().trim().min(1).max(300).optional(),
+  projectId: z.string().trim().min(1).max(300),
 });
 
 export async function POST(request: Request) {

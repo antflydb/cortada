@@ -55,6 +55,12 @@ button:hover { filter: brightness(.94); }
 button:disabled { cursor: wait; opacity: .65; }
 .audit-card small { color: var(--muted); line-height: 1.5; }
 .notice { max-width: 1124px; margin: -38px auto 32px; padding: 14px 18px; color: #2d4b40; background: var(--green-soft); border-left: 4px solid var(--green); }
+.project-switcher { max-width: 1124px; margin: 0 auto 28px; padding: 18px 20px; display: flex; align-items: center; justify-content: space-between; gap: 24px; color: var(--ink); background: var(--card); border: 1px solid var(--line); border-radius: var(--radius-md); box-shadow: var(--shadow-card); }
+.project-switcher > div { min-width: 0; display: grid; gap: 4px; }
+.project-switcher > div span { color: var(--muted); text-transform: uppercase; letter-spacing: .1em; font-size: 10px; font-weight: 900; }
+.project-switcher > div strong { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: 700 20px/1.25 var(--font-display); }
+.project-switcher label { width: min(100%, 440px); }
+.project-switcher select { padding-block: 10px; }
 
 .metrics { border-block: 1px solid var(--line); display: grid; grid-template-columns: repeat(4, 1fr); max-width: 1180px; margin: auto; }
 .metrics article { padding: 30px 28px; border-right: 1px solid var(--line); display: grid; gap: 7px; }
@@ -258,6 +264,8 @@ footer { max-width: 1180px; margin: auto; padding: 30px 28px; border-top: 1px so
   h1 { font-size: 52px; }
   .hero { padding-inline: 18px; gap: 46px; }
   .audit-card { box-shadow: var(--shadow-card); }
+  .project-switcher { margin-inline: 18px; align-items: stretch; flex-direction: column; }
+  .project-switcher label { width: 100%; }
   .metrics { grid-template-columns: 1fr; }
   .metrics article { border-right: 0; border-bottom: 1px solid var(--line); }
   .visibility-metrics { grid-template-columns: 1fr; }

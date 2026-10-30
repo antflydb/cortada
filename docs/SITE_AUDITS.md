@@ -25,13 +25,15 @@ The crawl is intentionally same-host and bounded. Redirects are revalidated agai
 
 The latest two crawl runs are compared without changing historical results. Cortada groups recommendation IDs across the latest run to show how many pages share each problem.
 
+Each audited hostname is a project workspace. The project selector writes the active project to `?project=<project-id>`, making a site dashboard bookmarkable and shareable. Overview data, assets, answerability retrieval, multimodal retrieval, visibility evidence and exports are scoped to that project on the server; changing the selector cannot combine evidence from two sites.
+
 ## Answerability
 
 The answerability panel sends a customer question to Antfly full-text and optional semantic retrieval. It returns supporting pages and reports whether evidence was found. This is a retrievability test, not an LLM-generated answer or subjective model grade.
 
 ## Reports
 
-`/api/report` renders a branded HTML report with a print/save-PDF action. Use `/api/report?format=markdown` or `/api/report?format=json` for portable exports. Reports are generated from Antfly evidence at request time and inherit the deployment's white-label product name and primary color.
+`/api/report?projectId=<project-id>` renders a branded HTML report with a print/save-PDF action. Add `format=markdown` or `format=json` for portable exports. The application adds the current project automatically. Reports are generated from Antfly evidence at request time and inherit the deployment's white-label product name and primary color.
 
 ## Operational limits
 

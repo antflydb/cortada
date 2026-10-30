@@ -56,8 +56,8 @@ export function VisibilityPanel({ visibility, query, hits, searching, onQueryCha
       <div className="visibility-search">
         <div><span>Antfly evidence retrieval</span><h3>Search model answers and citations.</h3><p>Uses full-text retrieval and automatically adds semantic fusion when the deployment has an Antfly embedding index.</p></div>
         <form onSubmit={onSubmit}>
-          <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Why is the brand missing for privacy buyers?" minLength={2} required />
-          <button disabled={searching}>{searching ? "Searching…" : "Search evidence"}</button>
+          <input value={query} onChange={(event) => onQueryChange(event.target.value)} placeholder="Why is the brand missing for privacy buyers?" minLength={2} disabled={!visibility.latestCampaign} required />
+          <button disabled={!visibility.latestCampaign || searching}>{searching ? "Searching…" : "Search evidence"}</button>
         </form>
         {hits.length > 0 && (
           <div className="visibility-search-results">

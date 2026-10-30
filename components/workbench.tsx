@@ -1,7 +1,7 @@
 "use client";
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react";
-import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchHit, Overview } from "@/lib/types";
+import { FormEvent, useEffect, useMemo, useState } from "react";
+import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchHit, Overview, ProjectDocument } from "@/lib/types";
 import type { VisibilityEvidenceHit, VisibilityOverview } from "@/lib/visibility/types";
 import { productConfig } from "@/lib/product/config";
 import { AuditPanel } from "./audit-panel";
@@ -10,6 +10,7 @@ import { MultimodalPanel } from "./multimodal-panel";
 import { AuditHero, ProductArchitecture, ProductFooter, ProductHeader } from "./product-shell";
 import { VisibilityPanel } from "./visibility-panel";
 import { SiteOverviewPanel } from "./site-overview-panel";
+import { ProjectSwitcher } from "./project-switcher";
 
 type ApiError = { ok?: false; error?: string };
 
@@ -40,9 +41,19 @@ const emptyVisibility: VisibilityOverview = {
   topCitedDomains: [],
 };
 
-async function loadWorkspace() {
-  const overview = await jsonRequest<{ ok: true; visibility: VisibilityOverview } & Overview>("/api/overview", { cache: "no-store" });
+type WorkspacePayload = { ok: true; visibility: VisibilityOverview; selectedProjectId?: string } & Overview;
+
+async function loadWorkspace(projectId?: string) {
+  const query = projectId ? `?projectId=${encodeURIComponent(projectId)}` : "";
+  const overview = await jsonRequest<WorkspacePayload>(`/api/overview${query}`, { cache: "no-store" });
   return { overview, visibility: overview.visibility };
+}
+
+function updateProjectUrl(projectId?: string) {
+  const next = new URL(window.location.href);
+  if (projectId) next.searchParams.set("project", projectId);
+  else next.searchParams.delete("project");
+  window.history.replaceState({}, "", `${next.pathname}${next.search}${next.hash}`);
 }
 
 export function Workbench() {
@@ -65,6 +76,7 @@ export function Workbench() {
     siteSummary: null,
   });
   const [visibility, setVisibility] = useState<VisibilityOverview>(emptyVisibility);
+  const [selectedProjectId, setSelectedProjectId] = useState<string>();
   const [selected, setSelected] = useState<AnalysisDocument>();
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
@@ -79,32 +91,45 @@ export function Workbench() {
   const [multimodalHits, setMultimodalHits] = useState<MultimodalSearchHit[]>([]);
   const [multimodalSearching, setMultimodalSearching] = useState(false);
 
-  const refresh = useCallback(async (preserveMessage = false) => {
+  async function refresh(preserveMessage = false, projectId = selectedProjectId) {
     setLoading(true);
     try {
-      const result = await loadWorkspace();
+      const result = await loadWorkspace(projectId);
       setOverview(result.overview);
       setVisibility(result.visibility);
-      setSelected((current) => current || result.overview.analyses[0]);
+      setSelectedProjectId(result.overview.selectedProjectId);
+      updateProjectUrl(result.overview.selectedProjectId);
+      setSelected(result.overview.analyses[0]);
       if (!preserveMessage) setMessage("");
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Could not load the workspace");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }
 
   useEffect(() => {
-    void loadWorkspace()
+    const requestedProjectId = new URL(window.location.href).searchParams.get("project") || undefined;
+    void loadWorkspace(requestedProjectId)
       .then((result) => {
         setOverview(result.overview);
         setVisibility(result.visibility);
+        setSelectedProjectId(result.overview.selectedProjectId);
+        updateProjectUrl(result.overview.selectedProjectId);
         setSelected(result.overview.analyses[0]);
         setMessage("");
       })
       .catch((error: unknown) => setMessage(error instanceof Error ? error.message : "Could not load the workspace"))
       .finally(() => setLoading(false));
   }, []);
+
+  async function selectProject(projectId: string) {
+    if (!projectId || projectId === selectedProjectId) return;
+    setAnswerability(undefined);
+    setVisibilityHits([]);
+    setMultimodalHits([]);
+    await refresh(false, projectId);
+  }
 
   const averageScore = useMemo(() => {
     if (overview.siteSummary) return overview.siteSummary.averageScore;
@@ -123,18 +148,20 @@ export function Workbench() {
     setSubmitting(true);
     setMessage("");
     try {
-      const result = await jsonRequest<{ ok: true; analyses: AnalysisDocument[]; run: CrawlRunDocument }>("/api/site-audit", {
+      const result = await jsonRequest<{ ok: true; project: ProjectDocument; analyses: AnalysisDocument[]; run: CrawlRunDocument }>("/api/site-audit", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ brandName, url, maxPages }),
       });
       setSelected(result.analyses[0]);
+      setSelectedProjectId(result.project.id);
+      updateProjectUrl(result.project.id);
       setMessage(`${result.run.completedPages} page(s) were indexed and audited in Antfly${result.run.failures.length ? `; ${result.run.failures.length} page(s) failed safely` : ""}.`);
       // Antfly persists the run synchronously while its retrieval index can take
       // a moment to expose it. Delay the dashboard read so comparisons do not
       // briefly fall back to a baseline after a successful repeat run.
       await new Promise((resolve) => setTimeout(resolve, 2_000));
-      await refresh(true);
+      await refresh(true, result.project.id);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "The page could not be audited");
     } finally {
@@ -150,7 +177,7 @@ export function Workbench() {
       const result = await jsonRequest<{ ok: true; result: AnswerabilityResult }>("/api/answerability", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: searchQuery, projectId: overview.siteSummary?.project.id }),
+        body: JSON.stringify({ question: searchQuery, projectId: selectedProjectId }),
       });
       setAnswerability(result.result);
     } catch (error) {
@@ -168,7 +195,7 @@ export function Workbench() {
       const result = await jsonRequest<{ ok: true; hits: VisibilityEvidenceHit[] }>("/api/visibility/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: visibilityQuery }),
+        body: JSON.stringify({ query: visibilityQuery, campaignId: visibility.latestCampaign?.id }),
       });
       setVisibilityHits(result.hits);
     } catch (error) {
@@ -186,7 +213,7 @@ export function Workbench() {
       const result = await jsonRequest<{ ok: true; hits: MultimodalSearchHit[] }>("/api/multimodal/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ query: multimodalQuery }),
+        body: JSON.stringify({ query: multimodalQuery, projectId: selectedProjectId }),
       });
       setMultimodalHits(result.hits);
     } catch (error) {
@@ -201,11 +228,12 @@ export function Workbench() {
       <ProductHeader />
       <AuditHero brandName={brandName} url={url} maxPages={maxPages} submitting={submitting} onBrandNameChange={setBrandName} onUrlChange={setUrl} onMaxPagesChange={setMaxPages} onSubmit={submitAudit} />
       {message && <div className="notice" role="status">{message}</div>}
-      <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} onSelect={setSelected} />
+      <ProjectSwitcher projects={overview.projects} selectedProjectId={selectedProjectId} loading={loading} onChange={(projectId) => void selectProject(projectId)} />
+      <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} projectId={selectedProjectId} onSelect={setSelected} />
       <AuditPanel loading={loading} overview={overview} selected={selected} averageScore={averageScore} />
-      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
+      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} enabled={Boolean(selectedProjectId)} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
       <VisibilityPanel visibility={visibility} query={visibilityQuery} hits={visibilityHits} searching={visibilitySearching} onQueryChange={setVisibilityQuery} onSubmit={submitVisibilitySearch} />
-      <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
+      <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} enabled={Boolean(selectedProjectId)} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
       {productConfig.showArchitecture && <ProductArchitecture />}
       <ProductFooter />
     </main>

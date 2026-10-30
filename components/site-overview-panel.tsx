@@ -3,23 +3,27 @@ import type { AnalysisDocument, SiteSummary } from "@/lib/types";
 type SiteOverviewPanelProps = {
   summary: SiteSummary | null;
   analyses: AnalysisDocument[];
+  projectId?: string;
   onSelect: (analysis: AnalysisDocument) => void;
 };
 
-export function SiteOverviewPanel({ summary, analyses, onSelect }: SiteOverviewPanelProps) {
+export function SiteOverviewPanel({ summary, analyses, projectId, onSelect }: SiteOverviewPanelProps) {
   if (!summary) return null;
   const runAnalyses = analyses
     .filter((analysis) => analysis.crawlRunId === summary.run.id)
     .sort((a, b) => a.score - b.score);
   const delta = summary.comparison?.scoreDelta;
+  const reportProject = projectId ? `projectId=${encodeURIComponent(projectId)}` : "";
+  const reportQuery = reportProject ? `?${reportProject}` : "";
+  const reportFormat = (format: string) => `?format=${format}${reportProject ? `&${reportProject}` : ""}`;
   return (
     <section className="site-overview-section">
       <div className="section-heading">
         <div><p className="eyebrow">Site-wide intelligence</p><h2>{summary.project.hostname}</h2></div>
         <div className="report-actions">
-          <a href="/api/report" target="_blank" rel="noreferrer">Open report ↗</a>
-          <a href="/api/report?format=markdown">Download Markdown</a>
-          <a href="/api/report?format=json">Export JSON</a>
+          <a href={`/api/report${reportQuery}`} target="_blank" rel="noreferrer">Open report ↗</a>
+          <a href={`/api/report${reportFormat("markdown")}`}>Download Markdown</a>
+          <a href={`/api/report${reportFormat("json")}`}>Export JSON</a>
         </div>
       </div>
       <div className="site-run-metrics">

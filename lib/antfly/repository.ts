@@ -15,6 +15,7 @@ import type {
   SourceDocument,
 } from "@/lib/types";
 import { buildSiteSummary } from "@/lib/aeo/site";
+import { belongsToProject, resolveProject, scopeVisibilityDocuments } from "@/lib/projects/scope";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
   VisibilityCitationDocument,
@@ -119,26 +120,35 @@ async function loadWorkspaceDocuments(limit = 3_000): Promise<WorkspaceDocument[
   return extractHits(result).map(normalizeHit<WorkspaceDocument>);
 }
 
-function buildOverview(documents: WorkspaceDocument[]): Overview {
+function buildOverview(documents: WorkspaceDocument[], requestedProjectId?: string): Overview & { selectedProjectId?: string } {
   const settings = antflySettings();
   const projects = documents
     .filter((document): document is ProjectDocument => document.type === "project")
     .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const selectedProject = resolveProject(projects, requestedProjectId);
+  const selectedProjectId = selectedProject?.id;
   const crawlRuns = documents
     .filter((document): document is CrawlRunDocument => document.type === "crawl_run")
+    .filter((document) => belongsToProject(document, selectedProjectId))
     .sort((a, b) => b.completedAt.localeCompare(a.completedAt));
-  const sources = documents.filter((document): document is SourceDocument => document.type === "source");
+  const sources = documents
+    .filter((document): document is SourceDocument => document.type === "source")
+    .filter((document) => belongsToProject(document, selectedProjectId));
   const analyses = documents
     .filter((document): document is AnalysisDocument => document.type === "analysis")
+    .filter((document) => belongsToProject(document, selectedProjectId))
     .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
   const assets = documents
     .filter((document): document is AssetDocument => document.type === "asset")
+    .filter((document) => belongsToProject(document, selectedProjectId))
     .sort((a, b) => b.discoveredAt.localeCompare(a.discoveredAt));
   const multimodalAnalyses = documents
     .filter((document): document is MultimodalAnalysisDocument => document.type === "multimodal_analysis")
+    .filter((document) => belongsToProject(document, selectedProjectId))
     .sort((a, b) => b.analyzedAt.localeCompare(a.analyzedAt));
   return {
     projects,
+    selectedProjectId,
     crawlRuns,
     sources,
     analyses,
@@ -160,31 +170,41 @@ function visibilityDocuments(documents: WorkspaceDocument[]): VisibilityDocument
   );
 }
 
-export async function getWorkspaceOverview(): Promise<Overview & { visibility: VisibilityOverview }> {
+export async function getWorkspaceOverview(requestedProjectId?: string): Promise<Overview & { selectedProjectId?: string; visibility: VisibilityOverview }> {
   const documents = await loadWorkspaceDocuments();
+  const overview = buildOverview(documents, requestedProjectId);
+  const selectedProject = overview.projects.find((project) => project.id === overview.selectedProjectId);
   return {
-    ...buildOverview(documents),
-    visibility: buildVisibilityOverview(visibilityDocuments(documents)),
+    ...overview,
+    visibility: buildVisibilityOverview(scopeVisibilityDocuments(visibilityDocuments(documents), selectedProject)),
   };
 }
 
-export async function getOverview(): Promise<Overview> {
-  return buildOverview(await loadWorkspaceDocuments());
+export async function getOverview(requestedProjectId?: string): Promise<Overview> {
+  return buildOverview(await loadWorkspaceDocuments(), requestedProjectId);
 }
 
-export async function getVisibilityOverview() {
-  return buildVisibilityOverview(visibilityDocuments(await loadWorkspaceDocuments(2_000)));
+export async function getVisibilityOverview(requestedProjectId?: string) {
+  const documents = await loadWorkspaceDocuments(2_000);
+  const projects = documents
+    .filter((document): document is ProjectDocument => document.type === "project")
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt));
+  const selectedProject = resolveProject(projects, requestedProjectId);
+  return buildVisibilityOverview(scopeVisibilityDocuments(visibilityDocuments(documents), selectedProject));
 }
 
-export async function searchVisibilityEvidence(query: string, limit = 8): Promise<VisibilityEvidenceHit[]> {
+export async function searchVisibilityEvidence(query: string, limit = 8, campaignId?: string): Promise<VisibilityEvidenceHit[]> {
   const client = antflyClient();
   const settings = antflySettings();
   const result = await client.tables.query(settings.table, {
     full_text_search: { query },
     filter_prefix: namespacePrefix(),
-    filter_query: disjunction([
-      term("visibility_observation", "type"),
-      term("visibility_citation", "type"),
+    filter_query: conjunction([
+      disjunction([
+        term("visibility_observation", "type"),
+        term("visibility_citation", "type"),
+      ]),
+      ...(campaignId ? [term(campaignId, "campaignId")] : []),
     ]),
     indexes: antflySearchIndexes(settings),
     limit,
@@ -247,17 +267,30 @@ export async function searchSources(query: string, limit = 8, projectId?: string
   }));
 }
 
-export async function searchMultimodalEvidence(query: string, limit = 8): Promise<MultimodalSearchHit[]> {
+export async function searchMultimodalEvidence(query: string, limit = 8, projectId?: string): Promise<MultimodalSearchHit[]> {
   const client = antflyClient();
   const settings = antflySettings();
   const table = settings.table;
   const searches: Promise<unknown>[] = [];
+  let allowedAssetIds = new Set<string>();
+
+  if (projectId && settings.pdfExtractionEnabled && settings.pdfTextIndex) {
+    const assets = await client.tables.query(table, {
+      filter_prefix: namespacePrefix(),
+      filter_query: conjunction([term("asset", "type"), term(projectId, "projectId")]),
+      limit: 1_000,
+    } as QueryRequest);
+    allowedAssetIds = new Set(extractHits(assets).map((hit) => normalizeHit<AssetDocument>(hit).id));
+  }
 
   if (settings.assetMetadataSearchEnabled && settings.assetMetadataIndex) {
     searches.push(client.tables.query(table, {
       semantic_search: query,
       filter_prefix: namespacePrefix(),
-      filter_query: term("asset", "type"),
+      filter_query: conjunction([
+        term("asset", "type"),
+        ...(projectId ? [term(projectId, "projectId")] : []),
+      ]),
       indexes: [settings.assetMetadataIndex],
       limit,
     } as QueryRequest));
@@ -271,6 +304,7 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
         term("asset", "type"),
         term("image", "assetKind"),
         term("true", "indexable"),
+        ...(projectId ? [term(projectId, "projectId")] : []),
       ]),
       indexes: [settings.visualIndex],
       limit,
@@ -292,7 +326,13 @@ export async function searchMultimodalEvidence(query: string, limit = 8): Promis
   }
 
   const results = await Promise.all(searches);
-  const hits = results.flatMap(extractHits).map((hit): MultimodalSearchHit => {
+  const hits = results.flatMap(extractHits).filter((hit) => {
+    if (!projectId) return true;
+    const document = normalizeHit<UnknownRecord>(hit);
+    if (document.projectId === projectId) return true;
+    const id = String(document.id || hit._id || hit._key || "");
+    return [...allowedAssetIds].some((assetId) => id === assetId || id.startsWith(`${assetId}:`));
+  }).map((hit): MultimodalSearchHit => {
     const document = normalizeHit<UnknownRecord>(hit);
     const isImage = document.type === "asset" && document.assetKind === "image";
     const isPdf = document.type === "asset" && document.assetKind === "pdf";

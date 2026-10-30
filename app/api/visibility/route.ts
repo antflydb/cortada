@@ -6,13 +6,21 @@ import { limitRequest, rateLimitHeaders, tooManyRequests } from "@/lib/security/
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 import { buildVisibilityDocuments, visibilityImportSchema } from "@/lib/visibility/import";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
+import { ProjectNotFoundError } from "@/lib/projects/scope";
 
 export const runtime = "nodejs";
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
-    return NextResponse.json({ ok: true, ...(await getVisibilityOverview()) });
+    const projectId = new URL(request.url).searchParams.get("projectId")?.trim() || undefined;
+    if (projectId && projectId.length > 300) {
+      return NextResponse.json({ ok: false, error: "Invalid project identifier" }, { status: 400 });
+    }
+    return NextResponse.json({ ok: true, ...(await getVisibilityOverview(projectId)) });
   } catch (error) {
+    if (error instanceof ProjectNotFoundError) {
+      return NextResponse.json({ ok: false, error: error.message }, { status: 404 });
+    }
     return NextResponse.json(
       { ok: false, error: error instanceof Error ? error.message : "Could not load visibility data" },
       { status: 503 },
