@@ -18,8 +18,11 @@ function gradeLabel(analysis?: AnalysisDocument, hasRun = false) {
 
 export function AuditPanel({ loading, overview, selected, averageScore, isLatestRun }: AuditPanelProps) {
   const selectedRun = overview.siteSummary?.run;
+  const unsuccessfulPages = selectedRun ? Math.max(selectedRun.failures.length, selectedRun.requestedPages) : 0;
   const emptyRunMessage = selectedRun
-    ? `${selectedRun.failures.length || selectedRun.requestedPages} page(s) produced no saved page analysis in this ${selectedRun.status} run.`
+    ? unsuccessfulPages
+      ? `${unsuccessfulPages} page(s) produced no saved page analysis in this ${selectedRun.status} run.`
+      : `This ${selectedRun.status} run produced no saved page analysis.`
     : "Analyze a public page to establish a baseline.";
   return (
     <>
