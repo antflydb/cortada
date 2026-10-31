@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { z } from "zod";
-import { searchMultimodalEvidence } from "@/lib/antfly/repository";
+import { compareMultimodalEvidence } from "@/lib/antfly/repository";
 import { limitRequest, rateLimitHeaders, tooManyRequests } from "@/lib/security/rate-limit";
 import { readJsonBody, RequestBodyError } from "@/lib/security/request-body";
 
@@ -17,8 +17,9 @@ export async function POST(request: Request) {
 
   try {
     const { query, projectId } = requestSchema.parse(await readJsonBody(request));
+    const comparison = await compareMultimodalEvidence(query, projectId, 5);
     return NextResponse.json(
-      { ok: true, hits: await searchMultimodalEvidence(query, 8, projectId) },
+      { ok: true, result: { query, ...comparison, testedAt: new Date().toISOString() } },
       { headers: rateLimitHeaders(rateLimit) },
     );
   } catch (error) {
@@ -34,10 +35,10 @@ export async function POST(request: Request) {
         { status: 400, headers: rateLimitHeaders(rateLimit) },
       );
     }
-    const message = error instanceof Error ? error.message : "Multimodal search failed";
+    console.error("Antfly multimodal comparison failed", error);
     return NextResponse.json(
-      { ok: false, error: message },
-      { status: /not enabled/i.test(message) ? 409 : 503, headers: rateLimitHeaders(rateLimit) },
+      { ok: false, error: "Antfly multimodal comparison failed" },
+      { status: 503, headers: rateLimitHeaders(rateLimit) },
     );
   }
 }

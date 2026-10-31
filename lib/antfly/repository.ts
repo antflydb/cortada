@@ -10,7 +10,10 @@ import type {
   AssetDocument,
   CrawlRunDocument,
   MultimodalAnalysisDocument,
+  MultimodalRetrievalMode,
+  MultimodalRetrievalRun,
   MultimodalSearchHit,
+  MultimodalSearchResult,
   Overview,
   ProjectDocument,
   SearchHit,
@@ -18,6 +21,7 @@ import type {
 } from "@/lib/types";
 import { buildSiteSummary } from "@/lib/aeo/site";
 import { answerabilityModes, answerabilityStatus, availableAnswerabilityModes, numericIndexScores } from "@/lib/answerability/retrieval";
+import { buildMultimodalFindings, multimodalModes } from "@/lib/multimodal/retrieval";
 import { belongsToProject, resolveComparisonRun, resolveProject, resolveRun, scopeVisibilityDocuments } from "@/lib/projects/scope";
 import { buildVisibilityOverview } from "@/lib/visibility/metrics";
 import type {
@@ -174,6 +178,7 @@ function buildOverview(
     multimodalAnalyses,
     multimodalCapabilities: {
       assetDiscovery: true,
+      pageTextSearchEnabled: settings.embeddingsEnabled && Boolean(settings.embeddingIndex),
       assetMetadataSearchEnabled: settings.assetMetadataSearchEnabled && Boolean(settings.assetMetadataIndex),
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),
@@ -424,95 +429,160 @@ export async function compareSourceRetrieval(
   };
 }
 
-export async function searchMultimodalEvidence(query: string, limit = 8, projectId?: string): Promise<MultimodalSearchHit[]> {
+function multimodalIndex(mode: MultimodalRetrievalMode, settings: ReturnType<typeof antflySettings>): string | undefined {
+  if (mode === "page-text") return settings.embeddingIndex;
+  if (mode === "asset-metadata") return settings.assetMetadataIndex;
+  if (mode === "visual") return settings.visualIndex;
+  return settings.pdfTextIndex;
+}
+
+function multimodalModeEnabled(mode: MultimodalRetrievalMode, settings: ReturnType<typeof antflySettings>): boolean {
+  if (mode === "page-text") return settings.embeddingsEnabled && Boolean(settings.embeddingIndex);
+  if (mode === "asset-metadata") return settings.assetMetadataSearchEnabled && Boolean(settings.assetMetadataIndex);
+  if (mode === "visual") return settings.visualSearchEnabled && Boolean(settings.visualIndex);
+  return settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex);
+}
+
+function unavailableMultimodalRun(
+  mode: MultimodalRetrievalMode,
+  settings: ReturnType<typeof antflySettings>,
+  status: "unavailable" | "not-configured",
+): MultimodalRetrievalRun {
+  return {
+    mode,
+    ...multimodalModes[mode],
+    status,
+    ...(multimodalIndex(mode, settings) ? { index: multimodalIndex(mode, settings) } : {}),
+    latencyMs: 0,
+    hits: [],
+    ...(status === "unavailable" ? { error: "This path is unavailable on the current Antfly index configuration." } : {}),
+  };
+}
+
+async function runMultimodalSearch(
+  query: string,
+  projectId: string,
+  mode: MultimodalRetrievalMode,
+  limit: number,
+): Promise<MultimodalRetrievalRun> {
   const client = antflyClient();
   const settings = antflySettings();
   const table = settings.table;
-  const searches: Promise<unknown>[] = [];
-  let allowedAssetIds = new Set<string>();
+  let parentAssets: AssetDocument[] = [];
+  let request: QueryRequest;
 
-  if (projectId && settings.pdfExtractionEnabled && settings.pdfTextIndex) {
-    const assets = await client.tables.query(table, {
+  if (mode === "page-text") {
+    request = {
+      semantic_search: query,
+      filter_prefix: namespacePrefix(),
+      filter_query: conjunction([term("source", "type"), term(projectId, "projectId")]),
+      indexes: [settings.embeddingIndex!],
+      limit,
+      profile: true,
+    } as QueryRequest;
+  } else if (mode === "asset-metadata" || mode === "visual") {
+    request = {
+      semantic_search: query,
+      filter_prefix: namespacePrefix(),
+      filter_query: conjunction([
+        term("asset", "type"),
+        ...(mode === "visual" ? [term("image", "assetKind"), term("true", "indexable")] : []),
+        term(projectId, "projectId"),
+      ]),
+      indexes: [multimodalIndex(mode, settings)!],
+      limit,
+      profile: true,
+    } as QueryRequest;
+  } else {
+    const assetsResult = await client.tables.query(table, {
       filter_prefix: namespacePrefix(),
       filter_query: conjunction([term("asset", "type"), term(projectId, "projectId")]),
       limit: 1_000,
     } as QueryRequest);
-    allowedAssetIds = new Set(extractHits(assets).map((hit) => normalizeHit<AssetDocument>(hit).id));
-  }
-
-  if (settings.assetMetadataSearchEnabled && settings.assetMetadataIndex) {
-    searches.push(client.tables.query(table, {
-      semantic_search: query,
-      filter_prefix: namespacePrefix(),
-      filter_query: conjunction([
-        term("asset", "type"),
-        ...(projectId ? [term(projectId, "projectId")] : []),
-      ]),
-      indexes: [settings.assetMetadataIndex],
-      limit,
-    } as QueryRequest));
-  }
-
-  if (settings.visualSearchEnabled && settings.visualIndex) {
-    searches.push(client.tables.query(table, {
-      semantic_search: query,
-      filter_prefix: namespacePrefix(),
-      filter_query: conjunction([
-        term("asset", "type"),
-        term("image", "assetKind"),
-        term("true", "indexable"),
-        ...(projectId ? [term(projectId, "projectId")] : []),
-      ]),
-      indexes: [settings.visualIndex],
-      limit,
-    } as QueryRequest));
-  }
-  if (settings.pdfExtractionEnabled && settings.pdfTextIndex) {
-    searches.push(client.tables.query(table, {
+    parentAssets = extractHits(assetsResult).map((hit) => normalizeHit<AssetDocument>(hit));
+    request = {
       full_text_search: { query },
       // Derived PDF chunks retain the parent asset key prefix, but do not copy
-      // arbitrary source fields such as workspaceId into every artifact record.
-      // Prefix isolation therefore covers both the parent and its descendants.
+      // arbitrary source fields such as projectId into every artifact record.
       filter_prefix: `${settings.namespace}:asset:`,
-      indexes: [settings.pdfTextIndex],
+      indexes: [settings.pdfTextIndex!],
       limit,
-    } as QueryRequest));
-  }
-  if (!searches.length) {
-    throw new Error("Antfly multimodal retrieval is not enabled for this deployment");
+      profile: true,
+    } as QueryRequest;
   }
 
-  const results = await Promise.all(searches);
-  const hits = results.flatMap(extractHits).filter((hit) => {
-    if (!projectId) return true;
+  const startedAt = performance.now();
+  const result = await client.tables.query(table, request);
+  const latencyMs = Math.round(performance.now() - startedAt);
+  const queryResult = extractQueryResult(result);
+  const hits = extractHits(result).filter((hit) => {
+    if (mode !== "pdf-text") return true;
     const document = normalizeHit<UnknownRecord>(hit);
-    if (document.projectId === projectId) return true;
     const id = String(document.id || hit._id || hit._key || "");
-    return [...allowedAssetIds].some((assetId) => id === assetId || id.startsWith(`${assetId}:`));
-  }).map((hit): MultimodalSearchHit => {
+    return parentAssets.some((asset) => id === asset.id || id.startsWith(`${asset.id}:`));
+  }).map((hit, index): MultimodalSearchHit => {
     const document = normalizeHit<UnknownRecord>(hit);
+    const id = String(document.id || hit._id || hit._key || "unknown");
+    const parentAsset = mode === "pdf-text"
+      ? parentAssets.find((asset) => id === asset.id || id.startsWith(`${asset.id}:`))
+      : undefined;
+    const isPage = mode === "page-text";
     const isImage = document.type === "asset" && document.assetKind === "image";
     const isPdf = document.type === "asset" && document.assetKind === "pdf";
     const text = typeof document.text === "string" ? document.text : "";
+    const indexScores = numericIndexScores(hit._index_scores);
     return {
-      id: String(document.id || hit._id || hit._key || "unknown"),
+      id,
+      rank: index + 1,
       score: typeof hit._score === "number" ? hit._score : 0,
-      kind: isImage ? "image" : isPdf ? "pdf" : "pdf-page",
+      kind: isPage ? "page" : isImage ? "image" : isPdf ? "pdf" : "pdf-page",
       title: typeof document.title === "string"
-        ? document.title
-        : typeof document.filename === "string" ? document.filename : isImage ? "Image evidence" : "PDF evidence",
-      ...(typeof document.url === "string" ? { url: document.url } : {}),
-      ...(typeof document.sourceUrl === "string" ? { sourceUrl: document.sourceUrl } : {}),
+        ? document.title : typeof document.filename === "string"
+          ? document.filename : parentAsset?.title || (isImage ? "Image evidence" : "PDF evidence"),
+      ...(typeof document.url === "string" ? { url: document.url } : parentAsset ? { url: parentAsset.url } : {}),
+      ...(typeof document.sourceUrl === "string" ? { sourceUrl: document.sourceUrl } : parentAsset ? { sourceUrl: parentAsset.sourceUrl } : {}),
       ...(typeof document.altText === "string" ? { altText: document.altText } : {}),
-      ...(text ? { excerpt: text.slice(0, 420) } : {}),
+      ...(text ? { excerpt: text.slice(0, 420) } : typeof document.context === "string" && document.context ? { excerpt: document.context.slice(0, 420) } : {}),
+      ...(indexScores ? { indexScores } : {}),
     };
   });
-  const bestById = new Map<string, MultimodalSearchHit>();
-  for (const hit of hits) {
-    const current = bestById.get(hit.id);
-    if (!current || hit.score > current.score) bestById.set(hit.id, hit);
-  }
-  return [...bestById.values()].sort((a, b) => b.score - a.score).slice(0, limit);
+  return {
+    mode,
+    ...multimodalModes[mode],
+    status: hits.length ? "results" : "empty",
+    index: multimodalIndex(mode, settings),
+    latencyMs,
+    ...(typeof queryResult?.took === "number" ? { engineTookMs: queryResult.took } : {}),
+    hits,
+  };
+}
+
+export async function compareMultimodalEvidence(
+  query: string,
+  projectId: string,
+  limit = 5,
+): Promise<Omit<MultimodalSearchResult, "query" | "testedAt">> {
+  const settings = antflySettings();
+  const modes: MultimodalRetrievalMode[] = ["page-text", "asset-metadata", "visual", "pdf-text"];
+  const runs = await Promise.all(modes.map(async (mode): Promise<MultimodalRetrievalRun> => {
+    if (!multimodalModeEnabled(mode, settings)) return unavailableMultimodalRun(mode, settings, "not-configured");
+    try {
+      return await runMultimodalSearch(query, projectId, mode, limit);
+    } catch (error) {
+      console.warn(`Antfly multimodal path unavailable: ${mode}`, error instanceof Error ? error.message : error);
+      return unavailableMultimodalRun(mode, settings, "unavailable");
+    }
+  }));
+  return {
+    runs,
+    findings: buildMultimodalFindings(runs),
+    capabilities: {
+      pageText: multimodalModeEnabled("page-text", settings),
+      assetMetadata: multimodalModeEnabled("asset-metadata", settings),
+      visual: multimodalModeEnabled("visual", settings),
+      pdfText: multimodalModeEnabled("pdf-text", settings),
+    },
+  };
 }
 
 export async function connectionStatus() {
@@ -531,6 +601,7 @@ export async function connectionStatus() {
     namespace: settings.namespace,
     embeddingsEnabled: settings.embeddingsEnabled,
     multimodal: {
+      pageTextSearchEnabled: settings.embeddingsEnabled && Boolean(settings.embeddingIndex),
       assetMetadataSearchEnabled: settings.assetMetadataSearchEnabled && Boolean(settings.assetMetadataIndex),
       visualSearchEnabled: settings.visualSearchEnabled && Boolean(settings.visualIndex),
       pdfExtractionEnabled: settings.pdfExtractionEnabled && Boolean(settings.pdfTextIndex),

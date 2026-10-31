@@ -1,7 +1,7 @@
 "use client";
 
 import { FormEvent, useEffect, useMemo, useState } from "react";
-import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchHit, Overview, ProjectDocument } from "@/lib/types";
+import type { AnalysisDocument, AnswerabilityResult, CrawlRunDocument, MultimodalSearchResult, Overview, ProjectDocument } from "@/lib/types";
 import type { VisibilityEvidenceHit, VisibilityOverview } from "@/lib/visibility/types";
 import { productConfig } from "@/lib/product/config";
 import { AuditPanel } from "./audit-panel";
@@ -77,6 +77,7 @@ export function Workbench() {
     multimodalAnalyses: [],
     multimodalCapabilities: {
       assetDiscovery: true,
+      pageTextSearchEnabled: false,
       assetMetadataSearchEnabled: false,
       visualSearchEnabled: false,
       pdfExtractionEnabled: false,
@@ -96,7 +97,7 @@ export function Workbench() {
   const [visibilityHits, setVisibilityHits] = useState<VisibilityEvidenceHit[]>([]);
   const [visibilitySearching, setVisibilitySearching] = useState(false);
   const [multimodalQuery, setMultimodalQuery] = useState("");
-  const [multimodalHits, setMultimodalHits] = useState<MultimodalSearchHit[]>([]);
+  const [multimodalResult, setMultimodalResult] = useState<MultimodalSearchResult>();
   const [multimodalSearching, setMultimodalSearching] = useState(false);
 
   async function refresh(
@@ -142,7 +143,7 @@ export function Workbench() {
     if (!projectId || projectId === selectedProjectId) return;
     setAnswerability(undefined);
     setVisibilityHits([]);
-    setMultimodalHits([]);
+    setMultimodalResult(undefined);
     await refresh(false, projectId, null, null);
   }
 
@@ -235,12 +236,12 @@ export function Workbench() {
     setMultimodalSearching(true);
     setMessage("");
     try {
-      const result = await jsonRequest<{ ok: true; hits: MultimodalSearchHit[] }>("/api/multimodal/search", {
+      const result = await jsonRequest<{ ok: true; result: MultimodalSearchResult }>("/api/multimodal/search", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ query: multimodalQuery, projectId: selectedProjectId }),
       });
-      setMultimodalHits(result.hits);
+      setMultimodalResult(result.result);
     } catch (error) {
       setMessage(error instanceof Error ? error.message : "Multimodal evidence search failed");
     } finally {
@@ -256,7 +257,7 @@ export function Workbench() {
       <ProjectSwitcher projects={overview.projects} selectedProjectId={selectedProjectId} loading={loading} onChange={(projectId) => void selectProject(projectId)} />
       <SiteOverviewPanel summary={overview.siteSummary} analyses={overview.analyses} projectId={selectedProjectId} loading={loading} onRunChange={(runId) => void selectRun(runId)} onComparisonChange={(runId) => void selectComparison(runId)} onSelect={setSelected} />
       <AuditPanel loading={loading} overview={overview} selected={selected} averageScore={averageScore} isLatestRun={overview.siteSummary?.run.id === overview.siteSummary?.latestRunId} />
-      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} hits={multimodalHits} searching={multimodalSearching} enabled={Boolean(selectedProjectId)} isHistoricalRun={overview.siteSummary?.run.id !== overview.siteSummary?.latestRunId} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
+      <MultimodalPanel analysis={selectedMultimodal} assets={overview.assets} capabilities={overview.multimodalCapabilities} query={multimodalQuery} result={multimodalResult} searching={multimodalSearching} enabled={Boolean(selectedProjectId)} isHistoricalRun={overview.siteSummary?.run.id !== overview.siteSummary?.latestRunId} onQueryChange={setMultimodalQuery} onSubmit={submitMultimodalSearch} />
       <VisibilityPanel visibility={visibility} query={visibilityQuery} hits={visibilityHits} searching={visibilitySearching} onQueryChange={setVisibilityQuery} onSubmit={submitVisibilitySearch} />
       <EvidenceSearchPanel query={searchQuery} result={answerability} searching={searching} enabled={Boolean(selectedProjectId)} onQueryChange={setSearchQuery} onSubmit={submitSearch} />
       {productConfig.showArchitecture && <ProductArchitecture />}

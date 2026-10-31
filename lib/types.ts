@@ -163,6 +163,7 @@ export type MultimodalAnalysisDocument = {
 
 export type MultimodalCapabilities = {
   assetDiscovery: true;
+  pageTextSearchEnabled: boolean;
   assetMetadataSearchEnabled: boolean;
   visualSearchEnabled: boolean;
   pdfExtractionEnabled: boolean;
@@ -266,13 +267,50 @@ export type AnswerabilityResult = {
   testedAt: string;
 };
 
+export type MultimodalRetrievalMode = "page-text" | "asset-metadata" | "visual" | "pdf-text";
+
 export type MultimodalSearchHit = {
   id: string;
+  rank: number;
   score: number;
-  kind: AssetKind | "pdf-page";
+  kind: AssetKind | "page" | "pdf-page";
   title: string;
   url?: string;
   sourceUrl?: string;
   altText?: string;
   excerpt?: string;
+  indexScores?: Record<string, number>;
+};
+
+export type MultimodalRetrievalRun = {
+  mode: MultimodalRetrievalMode;
+  label: string;
+  description: string;
+  status: "results" | "empty" | "unavailable" | "not-configured";
+  index?: string;
+  method: "semantic" | "full-text";
+  latencyMs: number;
+  engineTookMs?: number;
+  hits: MultimodalSearchHit[];
+  error?: string;
+};
+
+export type MultimodalRetrievalFinding = {
+  id: string;
+  severity: "signal" | "warning";
+  title: string;
+  detail: string;
+};
+
+export type MultimodalSearchResult = {
+  query: string;
+  runs: MultimodalRetrievalRun[];
+  findings: MultimodalRetrievalFinding[];
+  capabilities: {
+    pageText: boolean;
+    assetMetadata: boolean;
+    visual: boolean;
+    pdfText: boolean;
+  };
+  testedAt: string;
 };

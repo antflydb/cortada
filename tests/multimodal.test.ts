@@ -1,8 +1,30 @@
 import { describe, expect, it } from "vitest";
 import { analyzeMultimodalEvidence } from "@/lib/multimodal/analyze";
+import { buildMultimodalFindings, multimodalModes } from "@/lib/multimodal/retrieval";
 import { parsePageHtml, toAssetDocuments, toSourceDocument } from "@/lib/web/fetch-page";
+import type { MultimodalRetrievalMode, MultimodalRetrievalRun } from "@/lib/types";
 
 const fetchedAt = "2026-10-27T12:00:00.000Z";
+
+function retrievalRun(
+  mode: MultimodalRetrievalMode,
+  hits: number,
+  status: MultimodalRetrievalRun["status"] = hits ? "results" : "empty",
+): MultimodalRetrievalRun {
+  return {
+    mode,
+    ...multimodalModes[mode],
+    status,
+    latencyMs: 10,
+    hits: Array.from({ length: hits }, (_, index) => ({
+      id: `${mode}-${index}`,
+      rank: index + 1,
+      score: 0.8,
+      kind: mode === "page-text" ? "page" : mode === "visual" ? "image" : "pdf-page",
+      title: "Evidence",
+    })),
+  };
+}
 
 describe("multimodal evidence ingestion", () => {
   it("discovers, resolves, deduplicates, and classifies image and PDF assets", () => {
@@ -65,5 +87,30 @@ describe("multimodal evidence ingestion", () => {
     expect(analysis.findings.map((finding) => finding.id)).toEqual(
       expect.arrayContaining(["image-alt", "image-context", "pdf-extraction"]),
     );
+  });
+
+  it("identifies evidence that is trapped in a PDF", () => {
+    const findings = buildMultimodalFindings([
+      retrievalRun("page-text", 0),
+      retrievalRun("asset-metadata", 0),
+      retrievalRun("visual", 0, "not-configured"),
+      retrievalRun("pdf-text", 2),
+    ]);
+
+    expect(findings.map((finding) => finding.id)).toContain("pdf-only-evidence");
+  });
+
+  it("credits cross-format evidence and exposes metadata-only retrieval", () => {
+    const findings = buildMultimodalFindings([
+      retrievalRun("page-text", 2),
+      retrievalRun("asset-metadata", 1),
+      retrievalRun("visual", 0, "not-configured"),
+      retrievalRun("pdf-text", 0, "not-configured"),
+    ]);
+
+    expect(findings.map((finding) => finding.id)).toEqual([
+      "metadata-only-retrieval",
+      "cross-format-evidence",
+    ]);
   });
 });

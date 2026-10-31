@@ -2,6 +2,17 @@
 
 Cortada treats images and PDFs as evidence, not decorations. This feature is additive to the versioned 100-point AEO audit: changing a multimodal model or index never changes a historical AEO score.
 
+## Multimodal Evidence Lab
+
+The lab sends one question through four independent Antfly retrieval paths and keeps their results separate:
+
+1. Audited page text through the standard semantic evidence index.
+2. Image and PDF descriptions through the asset metadata embedding index.
+3. Approved image pixels through the ClipClap cross-modal index.
+4. Extracted or OCR-ready PDF chunks through the PDF full-text index.
+
+Every path reports its configured Antfly index, ranked evidence, scores, engine time, and request round-trip time. Paths that are not configured remain visible as feature-gated instead of disappearing. Deterministic comparisons flag useful AEO/GEO gaps—for example, relevant passages found in a PDF when no audited HTML page matches, or an image whose pixels match while its description does not. The lab does not generate an answer or ask another model to grade one.
+
 ## What works in every deployment
 
 Every page audit discovers at most 50 images and 20 PDF links, resolves and deduplicates their URLs, and writes them to Antfly as `asset` documents. Cortada records alt text, captions or nearby context, link labels, dimensions when declared, source identity, and whether the asset host is approved for indexing.

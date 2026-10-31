@@ -19,7 +19,7 @@ Run it as Cortada or rebrand it for your own company. The same application works
 - Namespaced source and analysis documents in an Antfly table
 - Full-text retrieval, with optional Antfly-native embeddings and hybrid RRF search
 - Bounded image/PDF discovery, first-class Antfly asset records, and a separate multimodal readiness audit
-- Antfly semantic asset retrieval, with feature-gated ClipClap visual retrieval and durable PDF page extraction/OCR
+- An Antfly Multimodal Evidence Lab comparing page vectors, asset meaning, ClipClap pixel retrieval and durable PDF extraction/OCR
 - Vercel-ready and container-ready Next.js application
 - Fail-closed Basic access control for hosted deployments
 - Opt-in public-demo mode with bounded request bodies and per-client throttles
@@ -27,7 +27,7 @@ Run it as Cortada or rebrand it for your own company. The same application works
 
 Visibility imports are optional and provider-neutral. Local or protected deployments can import normalized answer-engine observations; public-demo deployments expose the evidence dashboard read-only. See [Visibility campaigns](docs/VISIBILITY_CAMPAIGNS.md).
 
-Multimodal discovery and deterministic readiness checks work without an inference model. Antfly semantic asset retrieval works with the standard BGE text embedder; cross-modal pixel retrieval and durable PDF extraction require additional runtime capabilities and are deliberately opt-in. See [Multimodal evidence](docs/MULTIMODAL.md).
+Multimodal discovery and deterministic readiness checks work without an inference model. The evidence lab runs one question through every Antfly path the deployment has configured and identifies evidence trapped in PDFs or image pixels. Semantic page and asset retrieval work with the standard BGE text embedder; cross-modal pixel retrieval and durable PDF extraction require additional runtime capabilities and are deliberately opt-in. See [Multimodal evidence](docs/MULTIMODAL.md).
 
 ## Architecture
 
