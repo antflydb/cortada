@@ -67,8 +67,8 @@ export function buildMultimodalFindings(runs: MultimodalRetrievalRun[]): Multimo
     findings.push({
       id: "cross-format-evidence",
       severity: "signal",
-      title: "Evidence is discoverable across formats",
-      detail: "Antfly retrieved supporting page content and at least one asset path for the same question.",
+      title: "Antfly returned cross-format candidates",
+      detail: "The same question produced page and asset candidates. Inspect their scores and descriptions to decide whether the non-HTML evidence is specific enough to support an answer.",
     });
   }
   return findings;
